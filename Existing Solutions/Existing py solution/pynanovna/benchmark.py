@@ -47,7 +47,7 @@ def benchmark_readings(x, y):
 if __name__ == "__main__":
     # Set the number of readings per trial (x) and the number of trials (y)
     x = 10
-    y = 10   
+    y = 1   
 
     results = benchmark_readings(x, y)
 
