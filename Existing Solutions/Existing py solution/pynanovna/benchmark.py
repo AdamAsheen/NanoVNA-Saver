@@ -35,23 +35,26 @@ def benchmark_readings(x, y):
         trial_times.append(end_time - start_time)
 
     # Calculate statistics
-    average_time = sum(trial_times) / len(trial_times)
+    average_time_per_trial = sum(trial_times) / len(trial_times)
+    average_time_per_reading = average_time_per_trial / x
     std_deviation = statistics.stdev(trial_times) if len(trial_times) > 1 else 0
 
     return {
-        "average_time": average_time,
+        "average_time_per_trial": average_time_per_trial,
+        "average_time_per_reading": average_time_per_reading,
         "std_deviation": std_deviation,
         "trial_times": trial_times
     }
 
 if __name__ == "__main__":
     # Set the number of readings per trial (x) and the number of trials (y)
-    x = 10
+    x = 1000
     y = 1   
 
     results = benchmark_readings(x, y)
 
     print("\nBenchmark Results:")
-    print(f"Average Time: {results['average_time']:.6f} seconds")
+    print(f"Average Time per Trial ({x} readings): {results['average_time_per_trial']:.6f} seconds")
+    print(f"Average Time per Reading: {results['average_time_per_reading']:.6f} seconds")
     print(f"Standard Deviation: {results['std_deviation']:.6f} seconds")
     print("Trial Times:", results['trial_times'])
