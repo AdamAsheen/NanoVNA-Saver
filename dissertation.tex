@@ -1,3 +1,129 @@
 \documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{float}
+
+\title{Verifying the Speed of Sound in air using water tubes}
+\author{2774641h}
+\date{January 2024}
+
 \begin{document}
+
+\maketitle
+
+\begin{abstract}
+    We used standing waves to experimentally verify the speed of sound in air. A tube was filled with water and a smaller tube inserted inside of it. A sound was generated and sent down the inner tube. The inner tube was raised until the sound was its loudest and the distance recorded several times and these values were used to calculate the wavelength of the sound. The speed of sound was calculated to be $(294\pm 9.7)ms^{-1}$
+\end{abstract}
+
+\section{Introduction}
+We seek to experimentally verify the speed of sound in air ($340ms^{-1}$) using sound waves in water tubes
+
+
+\section{Theory}
+
+The speed of a sound wave can be given by the equation
+\begin{equation} \label{speedEqn}
+    v=f\lambda
+\end{equation}
+where $v$ is the speed of sound, $f$ is the frequency of the sound, and $\lambda$ is the wavelength of the sound.
+
+We can use standing waves to make getting the wavelengths easier. A standing wave is where a wave is reflected off a wall, undergoing a phase change of pi, and the reflected wave interferes with the original wave. This creates nodes, with minima interference, and anti-nodes, with maxima interference.
+
+A resonance is where the length the standing wave is present in is a multiple of half its wavelength, so anti-nodes are perfectly in the middle of where the wave exists. Where an anti-node exists, the wavelength of the standing wave can be found by this equation:
+\begin{equation} \label{wavelengthEqn}
+    \lambda=\frac{2L}{n+0.5}
+\end{equation}
+where $\lambda$ is the wavelength, $L$ is the length the standing wave is present in, and $n$ is the resonance number
+
+\section{Methods}
+A sound of known frequency, produced by a smartphone, was sent down a water tube with water at a depth to reflect the wave off. The distance to the water was changed until the first anti-node was found, and the distance was measured with a meter stick. The distance for the next two anti-nodes were recorded too, and then the experiment was repeated for another three frequencies.
+
+To make the water level easy to adjust, the tube was in another tube full of water, so the inner tube could simply be pulled up and down to adjust the water level. Equation \ref{wavelengthEqn} was used to calculate the wavelength, and from that equation \ref{speedEqn} was used to calculate the speed of sound.
+
+A diagram is shown in \ref{fig:setUp} for clarity.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{wavesBDiagram.png}
+    \caption{Equipment set up}
+    \label{fig:setUp}
+\end{figure}
+
+\section{Results}
+
+The following tables have the results. n is the number of waves in the tube
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+        n & Distance$(m)$ & $\lambda (m)$ & v $(ms^{-1})$ \\
+        \hline\hline
+        0.5 & 0.070 & 0.280 & 252\\\hline
+        1.5 & 0.265 & 0.353 & 318\\\hline
+        2.5 & 0.450 & 0.360 & 324\\\hline
+    \end{tabular}
+    \caption{900Hz}
+    \label{tab:900Hz}
+\end{table}
+
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+        n & Distance$(m)$ & $\lambda (m)$ & v $(ms^{-1})$ \\
+         \hline\hline
+        0.5 & 0.065 & 0.260 & 260\\ \hline
+        1.5 & 0.230 & 0.307 & 307\\ \hline
+        2.5 & 0.420 & 0.336 & 336\\ \hline
+    \end{tabular}
+    \caption{1000Hz}
+    \label{tab:1000Hz}
+\end{table}
+
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+        n & Distance$(m)$ & $\lambda (m)$ & v $(ms^{-1})$ \\
+        \hline \hline
+        0.5 & 0.050 & 0.200 & 220\\ \hline
+        1.5 & 0.205 & 0.273 & 301\\ \hline
+        2.5 & 0.370 & 0.296 & 325\\ \hline
+    \end{tabular}
+    \caption{1100Hz}
+    \label{tab:1100Hz}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+        n & Distance$(m)$ & $\lambda (m)$ & v $(ms^{-1})$ \\
+        \hline \hline
+        0.5 & 0.050 & 0.200 & 240\\ \hline
+        1.5 & 0.200 & 0.267 & 320\\ \hline
+        2.5 & 0.335 & 0.268 & 322\\ \hline
+    \end{tabular}
+    \caption{1200Hz}
+    \label{tab:1200Hz}
+\end{table}
+
+The average speed was calculated to be $294ms^{-1}$
+
+\section{Discussion}
+
+The accepted value for the speed of sound in air is $340ms^{-1}$. Our answer is inaccurate, being $13\%$ lower than the accepted value. The values for the first constructive interference were the least accurate, likely due to small inaccuracies in taking the measurement and reading uncertainty having a greater impact at small distances. If we discard the fist anti-node as being too inaccurate to use, our value is $319ms^{-1}$, which is much more accurate, only being $6\%$ lower than the accepted value
+
+Random uncertainty was calculated to be $\pm 3.3\%$ (this drops to $\pm 1.0\%$ when not including the first anti-node). Reading uncertainty was $\pm 0.22\%$. These uncertainties combine to give a final, absolute uncertainty of $\pm 9.7ms^{-1}$, or $\pm 3.3\%$ (discarding the first anti-node gives a final uncertainty of $\pm 3.0ms^{-1}$ or $\pm 0.94\%$).
+
+\section{Summary}
+
+We set out to verify the speed of sound in air as being $340ms^{-1}$. A tube was filled with water and a smaller tube inserted. A smartphone was used to generate sound at a specific frequency and the phone was positioned right above the inner tube. The inner tube was raised (with the phone) until the sound peaked, at which point the distance from the phone to the water was recorded. Then the tube would be raised again and this was repeated until 3 measurements were taken on 4 different frequencies. The speed of sound was calculated using $v=f\lambda$ and found to be $(294\pm 9.7)ms^{-1}$.
+
+\section{Conclusion}
+
+The speed of sound in air was calculated to be $(294\pm 9.7)ms^{-1}$. This value is inaccurate, as the accepted value is $340ms^{-1}$. The difference is likely down to human error
+
 \end{document}
