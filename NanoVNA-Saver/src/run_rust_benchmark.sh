@@ -3,9 +3,9 @@
 
 set -euo pipefail
 
-NUM_RUNS=10         # Number of runs (change as needed)
+NUM_RUNS=10        # Number of runs (change as needed)
 RUST_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-RUST_EXE="$RUST_DIR/target/release/nanovna-saver"
+RUST_EXE="$RUST_DIR/target/release/NanoVNA-Saver.exe"
 
 
 if [[ ! -x "$RUST_EXE" ]]; then
@@ -30,7 +30,11 @@ for ((i=1; i<=NUM_RUNS; i++)); do
   RUN_TIMES+=("$RUN_TIME")
   BYTES_PER_RUN+=("$BYTES")
 
+  # Print sweep data (hex and ASCII) for this run
+  echo "$OUT" | grep -A2 'Read' | head -n3
+  echo
 
+done
 
 END_TIME=$(date +%s.%N)
 ELAPSED=$(awk -v s="$START_TIME" -v e="$END_TIME" 'BEGIN { printf "%.6f", e-s }')

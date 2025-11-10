@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 tokio-serial = "5.4.5"
+
+[[bin]]
+name = "sweep"
+path = "src/sweep.rs"
