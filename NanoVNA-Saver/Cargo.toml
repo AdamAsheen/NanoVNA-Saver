@@ -8,4 +8,4 @@ tokio-serial = "5.4.5"
 
 [[bin]]
 name = "sweep"
-path = "src/sweep.rs"
+path = "src/main.rs"
