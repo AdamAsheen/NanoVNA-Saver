@@ -1,0 +1,11 @@
+[package]
+name = "NanoVNA-Saver"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio-serial = "5.4.5"
+
+[[bin]]
+name = "sweep"
+path = "src/main.rs"
