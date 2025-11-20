@@ -1,3 +1,4 @@
+
 [package]
 name = "NanoVNA-Saver"
 version = "0.1.0"
@@ -8,4 +9,5 @@ tokio-serial = "5.4.5"
 
 [[bin]]
 name = "sweep"
-path = "src/main.rs"
+path = "src/sweep.rs"
+
