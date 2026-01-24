@@ -2,22 +2,14 @@ use tokio_serial;
 use std::io::Write;
 use std::time::Duration;
 use std::fs;
+mod sweep;
 
 
 fn main(){
-    if let Ok(ports) = tokio_serial::available_ports() {
-        if let Some(p) = ports.first() {
-            println!("Connected to port {}", p.port_name);
-            let builder = tokio_serial::new(&p.port_name, 115200).timeout(Duration::from_secs(2));
-            let mut port = builder.open().unwrap();
-            port.write(b"data 0\r").unwrap();
-            let mut buf = [0u8; 2800]; 
-            let n = port.read(&mut buf).unwrap();
-            let data = format!("Read {n} bytes: {slice:?}", slice = &buf[..n]);
-            if let Ok(()) = fs::write("test.txt",data){
-                println!("Written values to test.txt")
-            }
-        }
-    }
+ let args: Vec<String> = std::env::args().collect();
+ let num_sweeps = args.get(1)
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1);
+sweep::run(num_sweeps);
 }
 

@@ -2,13 +2,7 @@ use tokio_serial;
 use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
-fn main() {
-    // Parse command line arguments for number of sweeps
-    let args: Vec<String> = std::env::args().collect();
-    let num_sweeps = args.get(1)
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(1);
-
+pub fn run(num_sweeps: usize) {
     if let Ok(ports) = tokio_serial::available_ports() {
         if let Some(p) = ports.first() {
             println!("Using port: {}", p.port_name);
