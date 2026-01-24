@@ -1,0 +1,10 @@
+BENCHMARK RESULTS
+Runs:                10
+Total Time:          0.565143 seconds
+Mean Run Time:       0.050526 seconds
+Stddev Run Time:     0.000000 seconds
+Time per Reading:    0.050526 seconds
+Total Bytes:         26380
+Throughput:          45.58 KB/s
+
+approx 8.4 times faster than python. only 5x the throughput of data but much less overhead, and less data needed per reading. 
