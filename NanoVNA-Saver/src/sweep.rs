@@ -1,94 +1,114 @@
-use tokio_serial;
+use tokio_serial::{SerialPort, SerialPortBuilderExt};
 use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
-pub fn run(num_sweeps: usize) {
-    if let Ok(ports) = tokio_serial::available_ports() {
-        if let Some(p) = ports.first() {
-            println!("Using port: {}", p.port_name);
+pub fn run_on_port(port_name: String, num_sweeps: usize) {
+    println!("[{}] Starting VNA worker", port_name);
 
-            let builder = tokio_serial::new(&p.port_name, 115200)
-                .timeout(Duration::from_secs(2));
-            
-            match builder.open() {
-                Ok(mut port) => {
-                    let mut total_bytes = 0;
-                    let start_time = Instant::now();
+    let builder = tokio_serial::new(&port_name, 115200)
+        .timeout(Duration::from_millis(100));
 
-                    // Perform continuous sweeps
-                    for i in 0..num_sweeps {
-                        match perform_sweep(&mut port, i + 1) {
-                            Ok((bytes_read, sweep_data)) => {
-                                total_bytes += bytes_read;
-                                println!("Sweep {}: Read {} bytes ({} lines)", i + 1, bytes_read, sweep_data.lines().count());
-                                println!("  Data (ASCII): {}", sweep_data.escape_debug());
-                            }
-                            Err(e) => {
-                                eprintln!("Sweep {} failed: {}", i + 1, e);
-                                break;
-                            }
-                        }
-                    }
-
-                    let elapsed = start_time.elapsed();
-
-                    // Print summary statistics
-                    println!("\n=== SWEEP SUMMARY ===");
-                    println!("Sweeps completed: {}", num_sweeps);
-                    println!("Total bytes read: {}", total_bytes);
-                    println!("Total time: {:.6} seconds", elapsed.as_secs_f64());
-                    println!("Average time per sweep: {:.6} seconds", 
-                             elapsed.as_secs_f64() / num_sweeps as f64);
-                    println!("Throughput: {:.2} KB/s", 
-                             (total_bytes as f64 / elapsed.as_secs_f64()) / 1024.0);
-                }
-                Err(e) => {
-                    eprintln!("Failed to open port: {}", e);
-                    std::process::exit(1);
-                }
-            }
-        } else {
-            eprintln!("No serial ports found");
-            std::process::exit(1);
+    let mut port = match builder.open() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("[{}] Failed to open port: {}", port_name, e);
+            return;
         }
-    } else {
-        eprintln!("Failed to enumerate serial ports");
-        std::process::exit(1);
+    };
+
+    clear_shell(&mut *port);
+
+    let start_time = Instant::now();
+    let mut total_bytes = 0usize;
+
+    for sweep_idx in 0..num_sweeps {
+        match perform_sweep(&mut *port) {
+            Ok((bytes_read, sweep_data)) => {
+                total_bytes += bytes_read;
+
+                println!(
+                    "[{}] Sweep {} complete ({} bytes)",
+                    port_name,
+                    sweep_idx + 1,
+                    bytes_read
+                );
+
+                println!(
+                    "[{}] Sweep {} data:\n{}",
+                    port_name,
+                    sweep_idx + 1,
+                    sweep_data
+                );
+            }
+            Err(e) => {
+                eprintln!(
+                    "[{}] Sweep {} failed: {}",
+                    port_name,
+                    sweep_idx + 1,
+                    e
+                );
+                break;
+            }
+        }
     }
+
+    let elapsed = start_time.elapsed().as_secs_f64();
+
+    println!(
+        "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
+        port_name,
+        num_sweeps,
+        total_bytes,
+        elapsed
+    );
 }
 
-fn perform_sweep(port: &mut Box<dyn tokio_serial::SerialPort>, _: usize) -> Result<(usize, String), std::io::Error> {
+fn clear_shell(port: &mut dyn SerialPort) {
+    let mut buf = [0u8; 512];
+    let _ = port.read(&mut buf);
+}
 
-
+fn perform_sweep(
+    port: &mut dyn SerialPort,
+) -> Result<(usize, String), std::io::Error> {
     port.write_all(b"data 0\r")?;
     port.flush()?;
 
-    // Read until we have complete sweep data (101 lines)
-    let mut buf = vec![0u8; 2800];
-    let mut total_read = 0;
-    let mut line_count = 0;
+    let mut buf = vec![0u8; 4096];
+    let mut total_read = 0usize;
+    let mut newline_count = 0usize;
 
-    while line_count < 101 && total_read < buf.len() {
+    let start = Instant::now();
+    let max_duration = Duration::from_millis(500);
+    let max_bytes = 32 * 1024;
+
+    while start.elapsed() < max_duration && total_read < max_bytes {
         match port.read(&mut buf[total_read..]) {
-            Ok(n) if n > 0 => {
+            Ok(0) => break,
+            Ok(n) => {
                 total_read += n;
-                // Count newlines in the data we just read
-                line_count = buf[..total_read].iter().filter(|&&b| b == b'\n').count();
-                // Expand buffer if needed
-                if total_read >= buf.len() - 1024 {
+
+                newline_count = buf[..total_read]
+                    .iter()
+                    .filter(|&&b| b == b'\n')
+                    .count();
+
+                if newline_count >= 101 {
+                    break;
+                }
+
+                if total_read + 1024 > buf.len() {
                     buf.resize(buf.len() + 4096, 0);
                 }
             }
-            Ok(_) => break,
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                continue;
+            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                break;
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => break,
             Err(e) => return Err(e),
         }
     }
 
     let sweep_ascii = String::from_utf8_lossy(&buf[..total_read]).to_string();
-    
     Ok((total_read, sweep_ascii))
 }
+
