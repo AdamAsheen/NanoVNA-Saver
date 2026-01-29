@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 tokio-serial = "5.4.5"
+mockall = "0.14.0"
 
 [[bin]]
 name = "sweep"

@@ -98,3 +98,33 @@ fn perform_sweep(port: &mut Box<dyn tokio_serial::SerialPort>, _: usize) -> Resu
     
     Ok((total_read, sweep_ascii))
 }
+
+
+#[cfg(test)]
+mod tests {
+    use mockall::*;
+    use mockall::predicate::*;
+    use super::*;
+    use std::io::Error;
+
+    mock! {
+        SerialPort {}
+
+        impl std::io::Read for SerialPort {
+            fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error>;
+        }
+
+        impl std::io::Write for SerialPort {
+            fn write(&mut self, buf: &[u8]) -> Result<usize, Error>;
+            fn write_all(&mut self, buf: &[u8]) -> Result<(), Error>;
+            fn flush(&mut self) -> Result<(), Error>;
+        }
+    }
+
+    #[test]
+    fn test_perform_sweep_normal_data() {
+        let mut mock = MockSerialPort::new();
+
+        //assert_eq!(perform_sweep(&mut mock, 1).unwrap()[1],"3");
+    }
+}
