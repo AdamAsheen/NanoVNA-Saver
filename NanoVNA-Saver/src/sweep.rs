@@ -1,8 +1,9 @@
 use tokio_serial::{SerialPort, SerialPortBuilderExt};
 use std::io::{Read, Write};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use uuid::Uuid;
 
-pub fn run_on_port(port_name: String, num_sweeps: usize) {
+pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
     println!("[{}] Starting VNA worker", port_name);
 
     let builder = tokio_serial::new(&port_name, 115200)
@@ -18,6 +19,17 @@ pub fn run_on_port(port_name: String, num_sweeps: usize) {
 
     clear_shell(&mut *port);
 
+    // Seperation of titles and headers 
+    let args: Vec<String> = std::env::args().collect();
+    let label = args.get(1).cloned().unwrap_or_else(|| "default_label".to_string());
+    let sweep_params = args.get(3).cloned().unwrap_or_else(|| "50_000 900_000_000 101".to_string());
+
+    let parts: Vec<&str> = sweep_params.split_whitespace().collect();
+    let start_freq: u64 = parts.get(0).unwrap_or(&"50000").replace('_', "").parse().unwrap();
+    let end_freq: u64 = parts.get(1).unwrap_or(&"900000000").replace('_', "").parse().unwrap();
+    let num_points: usize = parts.get(2).unwrap_or(&"101").parse().unwrap();
+    let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
+
     let start_time = Instant::now();
     let mut total_bytes = 0usize;
 
@@ -32,13 +44,45 @@ pub fn run_on_port(port_name: String, num_sweeps: usize) {
                     sweep_idx + 1,
                     bytes_read
                 );
+            let sweep_id = Uuid::new_v4();
+            let time_cmd_sent = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs_f64();
 
-                println!(
-                    "[{}] Sweep {} data:\n{}",
-                    port_name,
-                    sweep_idx + 1,
-                    sweep_data
+            let mut point_index =0usize;
+
+            for line in sweep_data.lines() {
+                let line = line.trim();
+                if line.is_empty() { continue; }
+                if line.starts_with("NanoVNA") { continue; }
+                if line.starts_with("ch>") { continue; }
+                if line.starts_with("data") { continue; }
+
+                let mut it = line.split_whitespace();
+                let (Some(real_s), Some(imag_s)) = (it.next(), it.next()) else { continue; };
+
+                let (Ok(real), Ok(imag)) = 
+                    (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; }; 
+
+                let freq = start_freq as f64 + point_index as f64 * step_freq;
+                let time_reading_received = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs_f64();
+
+                println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
+                    sweep_id, label, vna_number,
+                    time_cmd_sent, time_reading_received,
+                    freq, real, imag
                 );
+
+                point_index += 1;
+                if point_index >= num_points {
+                    break;
+                }
+            }
+
             }
             Err(e) => {
                 eprintln!(
@@ -50,6 +94,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize) {
                 break;
             }
         }
+
     }
 
     let elapsed = start_time.elapsed().as_secs_f64();
@@ -71,7 +116,7 @@ fn clear_shell(port: &mut dyn SerialPort) {
 fn perform_sweep(
     port: &mut dyn SerialPort,
 ) -> Result<(usize, String), std::io::Error> {
-    port.write_all(b"data 0\r")?;
+    port.write_all(b"data 0\r\n")?;
     port.flush()?;
 
     let mut buf = vec![0u8; 4096];

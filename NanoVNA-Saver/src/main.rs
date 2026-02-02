@@ -20,16 +20,26 @@ fn main() {
         eprintln!("No VNAs found");
         return;
     }
-
-    let vnas_to_use = ports.into_iter().take(numb_vnas);
+    // Checks if the serial port is connected
+    let vnas_to_use = ports
+    .into_iter()
+    .filter(|p|{
+        let n = p.port_name.as_str();
+        n.starts_with("/dev/cu.") && n.contains("usbmodem")
+    })
+    .take(numb_vnas);
 
     let mut handles = Vec::new();
 
-    for port in vnas_to_use {
+    // Print line for table header
+    println!("| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |");
+
+    for (idx, port) in vnas_to_use.enumerate() {
         let port_name = port.port_name.clone();
+        let vna_number = idx + 1; 
 
         let handle = thread::spawn(move || {
-            sweep::run_on_port(port_name, num_sweeps);
+            sweep::run_on_port(port_name, vna_number, num_sweeps);
         });
 
         handles.push(handle);
