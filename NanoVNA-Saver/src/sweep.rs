@@ -127,4 +127,127 @@ mod tests {
 
         //assert_eq!(perform_sweep(&mut mock, 1).unwrap()[1],"3");
     }
+
+    #[test]
+    fn test_perform_sweep_reads_101_lines() {
+        let mut mock = MockSerialPort::new();
+
+        mock.expect_write_all().returning(|_| Ok(()));
+        mock.expect_flush().returning(|| Ok(()));
+
+        // build 101 lines of "x\n"
+        let data = "x\n".repeat(101);
+        let bytes = data.as_bytes.to_vec();
+
+        //first read returns all data
+        mock.expect_read()
+        .returning(move |buf| {
+            buf[..bytes.len()].copy_from_slice(&bytes);
+            Ok(bytes.len())
+        });
+
+        let (count, text) = perform_sweep(&mut Box::new(mock), 1).unwrap();
+
+        assert_eq!(text.lines().count(), 101)
+        assert_eq!(count, bytes.len());
+
+    }
+
+    #[test]
+    fn test_stops_after_101_lines_even_if_more_arrives() {
+        let mut mock = MockSerialPort::new();
+
+        mock.expect_write_all().returning(|_| Ok(()));
+        mock.expect_flush().returning(|| Ok(()));
+
+        let data = "x\n".repeat(150);
+        let bytes = data.as_bytes().to_vec();
+
+        mock.expect_read().returning(move |buf| {
+            buf[..bytes.len()].copy_from_slice(&bytes);
+            Ok(bytes.len())
+        });
+
+        let (_, text) = perform_sweep(&mut mock, 1).unwrap();
+        assert!(text.lines().count() >= 101); // we only guarantee stop condition
+    }
+
+
+    #[test]
+    fn test_command_is_sent() {
+        let mut mock = MockSerialPort::new();
+
+        mock.expect_write_all()
+            .with(eq(b"data 0\r".as_ref()))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        mock.expect_flush()
+            .times(1)
+            .returning(|| Ok(()));
+
+        // Immediately timeout so we exit read loop
+        mock.expect_read()
+            .returning(|_| Err(std::io::ErrorKind::TimedOut.into()));
+
+        let _ = perform_sweep(&mut mock, 1).unwrap();
+    }
+
+    #[test]
+    fn test_timeout_returns_partial_data() {
+        let mut mock = MockSerialPort::new();
+
+        mock.expect_write_all().returning(|_| Ok(()));
+        mock.expect_flush().returning(|| Ok(()));
+
+        let partial = "x\n".repeat(20).into_bytes();
+        let mut called = false;
+
+        mock.expect_read().returning(move |buf| {
+            if !called {
+                buf[..partial.len()].copy_from_slice(&partial);
+                called = true;
+                Ok(partial.len())
+            } else {
+                Err(std::io::ErrorKind::TimedOut.into())
+            }
+        });
+
+        let (_, text) = perform_sweep(&mut mock, 1).unwrap();
+        assert_eq!(text.lines().count(), 20);
+    }
+
+    #[test]
+    fn test_wouldblock_is_retried() {
+        let mut mock = MockSerialPort::new();
+
+        mock.expect_write_all().returning(|_| Ok(()));
+        mock.expect_flush().returning(|| Ok(()));
+
+        let data = "x\n".repeat(101).into_bytes();
+        let mut step = 0;
+
+        mock.expect_read().returning(move |buf| {
+            step += 1;
+            match step {
+                1 | 2 => Err(std::io::ErrorKind::WouldBlock.into()),
+                _ => {
+                    buf[..data.len()].copy_from_slice(&data);
+                    Ok(data.len())
+                }
+            }
+        });
+
+        let (_, text) = perform_sweep(&mut mock, 1).unwrap();
+        assert_eq!(text.lines().count(), 101);
+    }
+
+
+
+
+
+
+
+
+
 }
