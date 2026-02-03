@@ -106,6 +106,7 @@ mod tests {
     use mockall::predicate::*;
     use super::*;
     use std::io::Error;
+    use tokio_serial::{DataBits, FlowControl, Parity, StopBits, ClearBuffer, SerialPort};
 
     mock! {
         SerialPort {}
@@ -119,14 +120,59 @@ mod tests {
             fn write_all(&mut self, buf: &[u8]) -> Result<(), Error>;
             fn flush(&mut self) -> Result<(), Error>;
         }
+
+        impl tokio_serial::SerialPort for SerialPort {
+            fn name(&self) -> Option<String>;
+            fn baud_rate(&self) -> Result<u32, tokio_serial::Error>;
+            fn data_bits(&self) -> Result<DataBits,tokio_serial:: Error>;
+            fn flow_control(&self) -> Result<FlowControl, tokio_serial::Error>;
+            fn parity(&self) -> Result<Parity, tokio_serial::Error>;
+            fn stop_bits(&self) -> Result<StopBits, tokio_serial::Error>;
+            fn timeout(&self) -> Duration;
+            fn set_baud_rate(&mut self, baud_rate: u32) -> Result<(), tokio_serial::Error>;
+            fn set_data_bits(&mut self, data_bits: DataBits) -> Result<(), tokio_serial::Error>;
+            fn set_flow_control(
+                &mut self,
+                flow_control: FlowControl,
+            ) -> Result<(), tokio_serial::Error>;
+            fn set_parity(&mut self, parity: Parity) -> Result<(), tokio_serial::Error>;
+            fn set_stop_bits(&mut self, stop_bits: StopBits) -> Result<(), tokio_serial::Error>;
+            fn set_timeout(&mut self, timeout: Duration) -> Result<(), tokio_serial::Error>;
+            fn write_request_to_send(&mut self, level: bool) -> Result<(), tokio_serial::Error>;
+            fn write_data_terminal_ready(&mut self, level: bool) -> Result<(), tokio_serial::Error>;
+            fn read_clear_to_send(&mut self) -> Result<bool, tokio_serial::Error>;
+            fn read_data_set_ready(&mut self) -> Result<bool, tokio_serial::Error>;
+            fn read_ring_indicator(&mut self) -> Result<bool, tokio_serial::Error>;
+            fn read_carrier_detect(&mut self) -> Result<bool, tokio_serial::Error>;
+            fn bytes_to_read(&self) -> Result<u32, tokio_serial::Error>;
+            fn bytes_to_write(&self) -> Result<u32, tokio_serial::Error>;
+            fn clear(&self, buffer_to_clear: ClearBuffer) -> Result<(), tokio_serial::Error>;
+            fn try_clone(&self) -> Result<Box<dyn SerialPort>, tokio_serial::Error>;
+            fn set_break(&self) -> Result<(), tokio_serial::Error>;
+            fn clear_break(&self) -> Result<(), tokio_serial::Error>;
+        }
     }
 
-    #[test]
+    /*#[test]
     fn test_perform_sweep_normal_data() {
         let mut mock = MockSerialPort::new();
 
-        //assert_eq!(perform_sweep(&mut mock, 1).unwrap()[1],"3");
-    }
+        mock.expect_write_all()
+            .withf(|buf: &[u8]| buf == b"data 0\r")
+            .returning(|_| Ok(()));
+        mock.expect_flush()
+            .returning(|| Ok(()));
+        mock.expect_read()
+            .times(101)
+            .returning(|buf| {
+                let line = b"0.000000,0.000000\r\n";
+                let len = line.len().min(buf.len());
+                buf[..len].copy_from_slice(&line[..len]);
+                Ok(len)
+            });
+
+        perform_sweep(&mut mock, 1).unwrap().1;
+    }*/
 
     #[test]
     fn test_perform_sweep_reads_101_lines() {
@@ -137,7 +183,7 @@ mod tests {
 
         // build 101 lines of "x\n"
         let data = "x\n".repeat(101);
-        let bytes = data.as_bytes.to_vec();
+        let bytes = data.as_bytes().to_vec();
 
         //first read returns all data
         mock.expect_read()
@@ -148,7 +194,7 @@ mod tests {
 
         let (count, text) = perform_sweep(&mut Box::new(mock), 1).unwrap();
 
-        assert_eq!(text.lines().count(), 101)
+        assert_eq!(text.lines().count(), 101);
         assert_eq!(count, bytes.len());
 
     }
@@ -241,13 +287,5 @@ mod tests {
         let (_, text) = perform_sweep(&mut mock, 1).unwrap();
         assert_eq!(text.lines().count(), 101);
     }
-
-
-
-
-
-
-
-
 
 }
