@@ -21,6 +21,7 @@ rust-nightly:
 
 test:
   stage: test
+  image: rust:latest
   script:
     - cd NanoVNA-Saver
-    - cargo test
+    - cargo test --verbose
