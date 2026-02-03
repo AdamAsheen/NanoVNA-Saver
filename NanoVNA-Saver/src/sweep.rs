@@ -176,6 +176,7 @@ mod tests {
 
     #[test]
     fn test_perform_sweep_reads_101_lines() {
+        println!("Running test_perform_sweep_reads_101_lines");
         let mut mock = MockSerialPort::new();
 
         mock.expect_write_all().returning(|_| Ok(()));
@@ -186,13 +187,15 @@ mod tests {
         let bytes = data.as_bytes().to_vec();
 
         //first read returns all data
+        let value = bytes.clone(); //Can't borrow a moved value in closure
         mock.expect_read()
         .returning(move |buf| {
-            buf[..bytes.len()].copy_from_slice(&bytes);
-            Ok(bytes.len())
+            buf[..value.len()].copy_from_slice(&value);
+            Ok(value.len())
         });
 
-        let (count, text) = perform_sweep(&mut Box::new(mock), 1).unwrap();
+        let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
+        let (count, text) = perform_sweep(&mut mock, 1).unwrap();
 
         assert_eq!(text.lines().count(), 101);
         assert_eq!(count, bytes.len());
@@ -214,6 +217,7 @@ mod tests {
             Ok(bytes.len())
         });
 
+        let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
         let (_, text) = perform_sweep(&mut mock, 1).unwrap();
         assert!(text.lines().count() >= 101); // we only guarantee stop condition
     }
@@ -236,6 +240,7 @@ mod tests {
         mock.expect_read()
             .returning(|_| Err(std::io::ErrorKind::TimedOut.into()));
 
+        let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
         let _ = perform_sweep(&mut mock, 1).unwrap();
     }
 
@@ -259,6 +264,7 @@ mod tests {
             }
         });
 
+        let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
         let (_, text) = perform_sweep(&mut mock, 1).unwrap();
         assert_eq!(text.lines().count(), 20);
     }
@@ -284,6 +290,7 @@ mod tests {
             }
         });
 
+        let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
         let (_, text) = perform_sweep(&mut mock, 1).unwrap();
         assert_eq!(text.lines().count(), 101);
     }
