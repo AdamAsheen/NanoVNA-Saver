@@ -1,5 +1,6 @@
 stages:
   - build
+  - test
 
 rust-latest:
   stage: build
@@ -17,3 +18,9 @@ rust-nightly:
     - cargo build --verbose
     - cargo test --verbose
   allow_failure: true
+
+test:
+  stage: test
+  script:
+    - cd NanoVNA-Saver
+    - cargo test
