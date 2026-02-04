@@ -1,9 +1,9 @@
-use tokio_serial::{SerialPort, SerialPortBuilderExt};
+use tokio_serial::{SerialPort, SerialPortBuilderExt, ClearBuffer};
 use std::io::{Read, Write};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
+pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     println!("[{}] Starting VNA worker", port_name);
 
     let builder = tokio_serial::new(&port_name, 115200)
@@ -21,7 +21,7 @@ pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
 
     // Seperation of titles and headers 
     let args: Vec<String> = std::env::args().collect();
-    let label = args.get(1).cloned().unwrap_or_else(|| "default_label".to_string());
+    let label = "default_label".to_string();
     let sweep_params = args.get(3).cloned().unwrap_or_else(|| "50_000 900_000_000 101".to_string());
 
     let parts: Vec<&str> = sweep_params.split_whitespace().collect();
@@ -34,7 +34,14 @@ pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
     let mut total_bytes = 0usize;
 
     for sweep_idx in 0..num_sweeps {
-        match perform_sweep(&mut *port) {
+        let sweep_id = Uuid::new_v4();
+            let time_cmd_sent = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs_f64();
+        
+        // for S11 port (data 0)
+        match perform_sweep(&mut *port, 0 , num_points) {
             Ok((bytes_read, sweep_data)) => {
                 total_bytes += bytes_read;
 
@@ -44,11 +51,6 @@ pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
                     sweep_idx + 1,
                     bytes_read
                 );
-            let sweep_id = Uuid::new_v4();
-            let time_cmd_sent = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs_f64();
 
             let mut point_index =0usize;
 
@@ -86,7 +88,7 @@ pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
             }
             Err(e) => {
                 eprintln!(
-                    "[{}] Sweep {} failed: {}",
+                    "[{}] Sweep {} S11 failed: {}",
                     port_name,
                     sweep_idx + 1,
                     e
@@ -94,9 +96,53 @@ pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
                 break;
             }
         }
+        // for S21 port (data 1)
+        match perform_sweep(&mut *port, 1, num_points) {
+            Ok((bytes_read, s21_data)) => {
+                total_bytes += bytes_read;
+                println!(
+                    "[{}] Sweep {} S21 complete ({} bytes)",
+                    port_name,
+                    sweep_idx + 1,
+                    bytes_read
+                );
+                let mut point_index = 0usize;
+                for line in s21_data.lines() {
+                    let line = line.trim();
+                    if line.is_empty() { continue; }
+                    if line.starts_with("NanoVNA") { continue; }
+                    if line.starts_with("ch>") { break; }
+                    if line.starts_with("data") { continue; }
 
+                    let mut it = line.split_whitespace();
+                    let (Some(real_s), Some(imag_s)) = (it.next(), it.next()) else { continue; };
+                    let (Ok(real), Ok(imag)) = (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; };
+
+                    let freq = start_freq as f64 + point_index as f64 * step_freq;
+                    let time_reading_received = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs_f64();
+
+                    println!(
+                        "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
+                        sweep_id, label, vna_number,
+                        time_cmd_sent, time_reading_received,
+                        freq, real, imag
+                    );
+
+                    point_index += 1;
+                    if point_index >= num_points { break; }
+                }
+
+            }
+            Err(e) => {
+                eprintln!("[{}] Sweep {} S21 failed: {}", port_name, sweep_idx + 1, e);
+                break;
+            }
+        }
     }
-
+    
     let elapsed = start_time.elapsed().as_secs_f64();
 
     println!(
@@ -111,17 +157,20 @@ pub fn run_on_port(port_name: String, vna_number:usize, num_sweeps: usize) {
 fn clear_shell(port: &mut dyn SerialPort) {
     let mut buf = [0u8; 512];
     let _ = port.read(&mut buf);
+    let _ = port.clear(ClearBuffer::Input);
 }
 
 fn perform_sweep(
-    port: &mut dyn SerialPort,
+    port: &mut dyn SerialPort, data_idx: u8, num_points: usize, 
 ) -> Result<(usize, String), std::io::Error> {
-    port.write_all(b"data 0\r\n")?;
+    
+    let _ = port.clear(ClearBuffer::Input); 
+    let cmd = format!("data {}\r\n", data_idx);
+    port.write_all(cmd.as_bytes())?;
     port.flush()?;
 
     let mut buf = vec![0u8; 4096];
     let mut total_read = 0usize;
-    let mut newline_count = 0usize;
 
     let start = Instant::now();
     let max_duration = Duration::from_millis(500);
@@ -133,17 +182,17 @@ fn perform_sweep(
             Ok(n) => {
                 total_read += n;
 
-                newline_count = buf[..total_read]
-                    .iter()
-                    .filter(|&&b| b == b'\n')
-                    .count();
+                if total_read + 1024 > buf.len(){
+                    buf.resize(buf.len() + 4096, 0);
+                }
 
-                if newline_count >= 101 {
+                let newline_count = buf[..total_read].iter().filter(|&&b| b == b'\n').count();
+                if newline_count >= num_points {
                     break;
                 }
 
-                if total_read + 1024 > buf.len() {
-                    buf.resize(buf.len() + 4096, 0);
+                if buf[..total_read].windows(3).any(|w| w == b"ch>") {
+                    break;
                 }
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
