@@ -1,23 +1,48 @@
-use tokio_serial;
-use std::io::Write;
-use std::time::Duration;
-use std::fs;
+use std::thread;
+
+mod sweep;
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    let num_sweeps = args.get(1)
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1);
+
+    let vna_number = args.get(2)
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1);
+
+    let ports = tokio_serial::available_ports()
+        .expect("Failed to enumerate serial ports");
+
+    if ports.is_empty() {
+        eprintln!("No VNAs found");
+        return;
+    }
 
 
-fn main(){
-    if let Ok(ports) = tokio_serial::available_ports() {
-        if let Some(p) = ports.first() {
-            println!("Connected to port {}", p.port_name);
-            let builder = tokio_serial::new(&p.port_name, 115200).timeout(Duration::from_secs(2));
-            let mut port = builder.open().unwrap();
-            port.write(b"data 0\r").unwrap();
-            let mut buf = [0u8; 2800]; 
-            let n = port.read(&mut buf).unwrap();
-            let data = format!("Read {n} bytes: {slice:?}", slice = &buf[..n]);
-            if let Ok(()) = fs::write("test.txt",data){
-                println!("Written values to test.txt")
-            }
-        }
+    // Checks if the serial port is connected
+    let vnas_to_use = ports.into_iter().take(vna_number);
+
+    // Print line for table header
+    println!("| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |");
+
+    let mut handles = Vec::new();
+
+    for (idx, port) in vnas_to_use.enumerate() {
+        let port_name = port.port_name.clone();
+        let vna_number = idx + 1; 
+
+        let handle = thread::spawn(move || {
+            sweep::run_on_port(port_name, num_sweeps, vna_number);
+        });
+
+        handles.push(handle);
+    }
+
+    for h in handles {
+        h.join().unwrap();
     }
 }
 
