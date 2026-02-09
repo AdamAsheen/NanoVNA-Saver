@@ -8,6 +8,7 @@ clippy-check:
   image: rust:latest
   script: 
     - rustup component add clippy
+    - cd NanoVNA-Saver
     - cargo clippy --all-targets --all-features -- -Dwarnings
 
 rust-latest:
