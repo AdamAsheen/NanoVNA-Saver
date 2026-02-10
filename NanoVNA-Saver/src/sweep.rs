@@ -1,5 +1,4 @@
-use tokio_serial::{SerialPort, SerialPortBuilderExt, ClearBuffer};
-use std::io::{Read, Write};
+use tokio_serial::{SerialPort, ClearBuffer};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -25,7 +24,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     let sweep_params = args.get(3).cloned().unwrap_or_else(|| "50_000 900_000_000 101".to_string());
 
     let parts: Vec<&str> = sweep_params.split_whitespace().collect();
-    let start_freq: u64 = parts.get(0).unwrap_or(&"50000").replace('_', "").parse().unwrap();
+    let start_freq: u64 = parts.first().unwrap_or(&"50000").replace('_', "").parse().unwrap();
     let end_freq: u64 = parts.get(1).unwrap_or(&"900000000").replace('_', "").parse().unwrap();
     let num_points: usize = parts.get(2).unwrap_or(&"101").parse().unwrap();
     let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
