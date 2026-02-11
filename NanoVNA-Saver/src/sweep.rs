@@ -40,19 +40,17 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
 
     //********************************************************************************************************
     //********************************************************************************************************
-    //******************************************Command Line Format*******************************************
+    //*********************************************Command Line Format  **************************************
     // *******************************************************************************************************
     // **************cargo run [number_of_sweeps] [vna_number] [start_freq] [end_freq] [num_points]***********
     //*****defaults to 1 sweep, 1 vna, start frequency 50kHz, end frequency 900MHz, number of points 101******
-    //************************************************Example*************************************************
-    //**********************************cargo run 5 1 50_000 900_000_000 101**********************************
+    //********************************************************************************************************
     //********************************************************************************************************
 
     let start_time = Instant::now();
     let mut total_bytes = 0usize;
 
     for sweep_idx in 0..num_sweeps {
-        let sweep_start = Instant::now();
         let sweep_id = Uuid::new_v4();
         
         // for S11 port (data 0)
@@ -88,8 +86,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                     (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; }; 
 
                 let freq = start_freq as f64 + point_index as f64 * step_freq;
-                let freq_start = SystemTime::now();
-                let time_reading_received = freq_start
+                let time_reading_received = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs_f64();
@@ -145,8 +142,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                     let (Ok(real), Ok(imag)) = (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; };
 
                     let freq = start_freq as f64 + point_index as f64 * step_freq;
-                    let freq_start = SystemTime::now();
-                    let time_reading_received = freq_start
+                    let time_reading_received = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_secs_f64();
@@ -168,21 +164,16 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                 break;
             }
         }
-        let sweep_elapsed = sweep_start.elapsed().as_secs_f64();
     }
     
     let elapsed = start_time.elapsed().as_secs_f64();
-    let throughput = if elapsed > 0.0 { (total_bytes as f64 / elapsed) / 1024.0 } else { 0.0 };
-    let avg_time_per_point = if num_sweeps > 0 && num_points > 0 { elapsed / (num_sweeps * num_points * 2) as f64 } else { 0.0 };
 
     println!(
-        "[{}] Finished: {} sweeps, {} bytes, {:.2}s, {:.2} KB/s, {:.6}s/point",
+        "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
         port_name,
         num_sweeps,
         total_bytes,
-        elapsed,
-        throughput,
-        avg_time_per_point
+        elapsed
     );
 }
 
