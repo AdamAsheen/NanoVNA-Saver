@@ -1,7 +1,9 @@
 use tokio_serial::{SerialPort, ClearBuffer};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
-use polars::prelude::*;
+use polars::frame::DataFrame;
+use polars::series::Series;
+use polars::prelude::NamedFrom;
 
 pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     println!("[{}] Starting VNA worker", port_name);
@@ -150,12 +152,23 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                         .unwrap()
                         .as_secs_f64();
 
-                    println!(
+               /*     println!(
                         "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
                         sweep_id, label, vna_number,
                         time_cmd_sent_s21, time_reading_received,
                         freq, real, imag
                     );
+        */
+
+                    sweep_ids.push(sweep_id.to_string());
+                    labels.push(label.clone());
+                    vna_numbers.push(vna_number as i32);
+                    time_cmd_sent_vec.push(time_cmd_sent_s21);
+                    time_received_vec.push(time_reading_received);
+                    frequencies.push(freq);
+                    channels.push("S21".to_string());
+                    real_parts.push(real);
+                    imag_parts.push(imag);
 
 
                     point_index += 1;
@@ -171,6 +184,20 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     }
     
     let elapsed = start_time.elapsed().as_secs_f64();
+    
+    let df = DataFrame::new(vec![
+    Series::new("sweep_id", sweep_ids),
+    Series::new("label", labels),
+    Series::new("vna_number", vna_numbers),
+    Series::new("time_cmd_sent", time_cmd_sent_vec),
+    Series::new("time_received", time_received_vec),
+    Series::new("frequency_hz", frequencies),
+    Series::new("channel", channels),
+    Series::new("real", real_parts),
+    Series::new("imag", imag_parts),
+    ]).expect("Failed to create DataFrame");
+
+    println!("{:?}", df);
 
     println!(
         "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
