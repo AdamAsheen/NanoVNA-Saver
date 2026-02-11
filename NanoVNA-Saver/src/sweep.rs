@@ -21,18 +21,38 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     // Seperation of titles and headers 
     let args: Vec<String> = std::env::args().collect();
     let label = "default_label".to_string();
-    let sweep_params = args.get(3).cloned().unwrap_or_else(|| "50_000 900_000_000 101".to_string());
-
-    let parts: Vec<&str> = sweep_params.split_whitespace().collect();
-    let start_freq: u64 = parts.first().unwrap_or(&"50000").replace('_', "").parse().unwrap();
-    let end_freq: u64 = parts.get(1).unwrap_or(&"900000000").replace('_', "").parse().unwrap();
-    let num_points: usize = parts.get(2).unwrap_or(&"101").parse().unwrap();
+    let start_freq: u64 = args.get(3)
+        .unwrap_or(&"50_000".to_string())
+        .replace('_', "")
+        .parse()
+        .unwrap();
+    let end_freq: u64 = args.get(4)
+        .unwrap_or(&"900_000_000".to_string())
+        .replace('_', "")
+        .parse()
+        .unwrap();
+    let num_points: usize = args.get(5)
+        .unwrap_or(&"101".to_string())
+        .replace('_', "")
+        .parse()
+        .unwrap();
     let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
+
+    //********************************************************************************************************
+    //********************************************************************************************************
+    //******************************************Command Line Format*******************************************
+    // *******************************************************************************************************
+    // **************cargo run [number_of_sweeps] [vna_number] [start_freq] [end_freq] [num_points]***********
+    //*****defaults to 1 sweep, 1 vna, start frequency 50kHz, end frequency 900MHz, number of points 101******
+    //************************************************Example*************************************************
+    //**********************************cargo run 5 1 50_000 900_000_000 101**********************************
+    //********************************************************************************************************
 
     let start_time = Instant::now();
     let mut total_bytes = 0usize;
 
     for sweep_idx in 0..num_sweeps {
+        let sweep_start = Instant::now();
         let sweep_id = Uuid::new_v4();
         
         // for S11 port (data 0)
@@ -68,7 +88,8 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                     (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; }; 
 
                 let freq = start_freq as f64 + point_index as f64 * step_freq;
-                let time_reading_received = SystemTime::now()
+                let freq_start = SystemTime::now();
+                let time_reading_received = freq_start
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs_f64();
@@ -124,7 +145,8 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                     let (Ok(real), Ok(imag)) = (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; };
 
                     let freq = start_freq as f64 + point_index as f64 * step_freq;
-                    let time_reading_received = SystemTime::now()
+                    let freq_start = SystemTime::now();
+                    let time_reading_received = freq_start
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_secs_f64();
@@ -146,16 +168,21 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                 break;
             }
         }
+        let sweep_elapsed = sweep_start.elapsed().as_secs_f64();
     }
     
     let elapsed = start_time.elapsed().as_secs_f64();
+    let throughput = if elapsed > 0.0 { (total_bytes as f64 / elapsed) / 1024.0 } else { 0.0 };
+    let avg_time_per_point = if num_sweeps > 0 && num_points > 0 { elapsed / (num_sweeps * num_points * 2) as f64 } else { 0.0 };
 
     println!(
-        "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
+        "[{}] Finished: {} sweeps, {} bytes, {:.2}s, {:.2} KB/s, {:.6}s/point",
         port_name,
         num_sweeps,
         total_bytes,
-        elapsed
+        elapsed,
+        throughput,
+        avg_time_per_point
     );
 }
 
