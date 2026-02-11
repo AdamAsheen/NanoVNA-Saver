@@ -1,6 +1,7 @@
 use tokio_serial::{SerialPort, ClearBuffer};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
+use polars::prelude::*;
 
 pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     println!("[{}] Starting VNA worker", port_name);
@@ -31,6 +32,16 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
 
     let start_time = Instant::now();
     let mut total_bytes = 0usize;
+    let mut sweep_ids: Vec<String> = Vec::new();
+    let mut labels: Vec<String> = Vec::new();
+    let mut vna_numbers: Vec<i32> = Vec::new();
+    let mut time_cmd_sent_vec: Vec<f64> = Vec::new();
+    let mut time_received_vec: Vec<f64> = Vec::new();
+    let mut frequencies: Vec<f64> = Vec::new();
+    let mut channels: Vec<String> = Vec::new();
+    let mut real_parts: Vec<f64> = Vec::new();
+    let mut imag_parts: Vec<f64> = Vec::new();
+
 
     for sweep_idx in 0..num_sweeps {
         let sweep_id = Uuid::new_v4();
@@ -72,12 +83,22 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs_f64();
-
+/*
                 println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
                     sweep_id, label, vna_number,
                     time_cmd_sent_s11, time_reading_received,
                     freq, real, imag
                 );
+*/              
+                sweep_ids.push(sweep_id.to_string());
+                labels.push(label.clone());
+                vna_numbers.push(vna_number as i32);
+                time_cmd_sent_vec.push(time_cmd_sent_s11);
+                time_received_vec.push(time_reading_received);
+                frequencies.push(freq);
+                channels.push("S11".to_string());
+                real_parts.push(real);
+                imag_parts.push(imag);
 
                 point_index += 1;
                 if point_index >= num_points {
@@ -135,6 +156,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                         time_cmd_sent_s21, time_reading_received,
                         freq, real, imag
                     );
+
 
                     point_index += 1;
                     if point_index >= num_points { break; }
@@ -215,6 +237,8 @@ fn perform_sweep(
     let sweep_ascii = String::from_utf8_lossy(&buf[..total_read]).to_string();
     Ok((total_read, sweep_ascii))
 }
+
+
 
 #[cfg(test)]
 mod tests {
