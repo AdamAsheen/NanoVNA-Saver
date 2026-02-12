@@ -28,9 +28,7 @@ fn main() {
 
 
     // Checks if the serial port is connected
-    let vnas_to_use = ports.into_iter().filter(|p| p.port_name.starts_with("/dev/cu.usbmodem")).take(vna_number);
-
-
+    let vnas_to_use = ports.into_iter().take(vna_number);
     // Print line for table header
     println!("| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |");
 
