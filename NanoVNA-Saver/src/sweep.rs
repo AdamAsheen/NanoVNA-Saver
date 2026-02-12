@@ -85,13 +85,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs_f64();
-/*
-                println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
-                    sweep_id, label, vna_number,
-                    time_cmd_sent_s11, time_reading_received,
-                    freq, real, imag
-                );
-*/              
+                
                 sweep_ids.push(sweep_id.to_string());
                 labels.push(label.clone());
                 vna_numbers.push(vna_number as i32);
@@ -109,6 +103,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
             }
 
             }
+
             Err(e) => {
                 eprintln!(
                     "[{}] Sweep {} S11 failed: {}",
@@ -119,6 +114,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                 break;
             }
         }
+
         // for S21 port (data 1)
         let time_cmd_sent_s21 = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -151,14 +147,6 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_secs_f64();
-
-               /*     println!(
-                        "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
-                        sweep_id, label, vna_number,
-                        time_cmd_sent_s21, time_reading_received,
-                        freq, real, imag
-                    );
-        */
 
                     sweep_ids.push(sweep_id.to_string());
                     labels.push(label.clone());
@@ -197,7 +185,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     Series::new("imag", imag_parts),
     ]).expect("Failed to create DataFrame");
 
-    println!("{:?}", df);
+    println!("{}", df);
 
     println!(
         "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
