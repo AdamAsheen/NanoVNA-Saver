@@ -21,7 +21,7 @@ rust-latest:
 
 rust-nightly:
   stage: build
-  image: rustlang/rust:nightly
+  image: rustlang/rust:nightly-2026-02-12
   script:
     - cd NanoVNA-Saver
     - cargo build --verbose
