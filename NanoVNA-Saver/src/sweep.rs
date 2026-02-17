@@ -2,7 +2,7 @@ use tokio_serial::{SerialPort, ClearBuffer};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
+pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize, start_freq: u64, end_freq: u64, num_points: usize) {
     println!("[{}] Starting VNA worker", port_name);
 
     let builder = tokio_serial::new(&port_name, 115200)
@@ -19,35 +19,9 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize) {
     clear_shell(&mut *port);
 
     // Seperation of titles and headers 
-    let args: Vec<String> = std::env::args().collect();
     let label = "default_label".to_string();
-    let start_freq: u64 = args.get(3)
-        .unwrap_or(&"50_000".to_string())
-        .replace('_', "")
-        .parse()
-        .unwrap();
-    let end_freq: u64 = args.get(4)
-        .unwrap_or(&"900_000_000".to_string())
-        .replace('_', "")
-        .parse()
-        .unwrap();
-    let num_points: usize = args.get(5)
-        .unwrap_or(&"101".to_string())
-        .replace('_', "")
-        .parse()
-        .unwrap();
     let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
 
-    //********************************************************************************************************
-    //********************************************************************************************************
-    //******************************************Command Line Format*******************************************
-    // *******************************************************************************************************
-    // **************cargo run [number_of_sweeps] [vna_number] [start_freq] [end_freq] [num_points]***********
-    //*****defaults to 1 sweep, 1 vna, start frequency 50kHz, end frequency 900MHz, number of points 101******
-    //********************************************************************************************************
-    //************************************************Example*************************************************
-    //**********************************cargo run 5 1 50_000 900_000_000 101**********************************
-    //********************************************************************************************************
 
     let start_time = Instant::now();
     let mut total_bytes = 0usize;
