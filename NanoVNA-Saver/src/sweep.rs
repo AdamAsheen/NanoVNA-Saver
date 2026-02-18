@@ -162,58 +162,115 @@ fn clear_shell(port: &mut dyn SerialPort) {
 }
 
 fn perform_sweep(
-    port: &mut dyn SerialPort, data_idx: u8, start_freq: u64, end_freq: u64, num_points: usize, 
+    port: &mut dyn SerialPort,
+    data_idx: u8,
+    start_freq: u64,
+    end_freq: u64,
+    num_points: usize,
 ) -> Result<(usize, String), std::io::Error> {
     
-    let _ = port.clear(ClearBuffer::Input); 
+    
+    let _ = port.clear(ClearBuffer::Input);
 
+    
     let cmd = format!("sweep {} {} {}\r\n", start_freq, end_freq, num_points);
     port.write_all(cmd.as_bytes())?;
     port.flush()?;
+
+    
+    let mut scratch = [0u8; 1];
+    let mut recent = Vec::new(); // keep track of last few bytes to match "ch>"
+    
+    let start = Instant::now();
+    // Timeout for sweep execution can be long if many points
+    let sweep_timeout = Duration::from_millis(5000 + (num_points as u64 * 20));
+
+    loop {
+        if start.elapsed() > sweep_timeout {
+             eprintln!("[{}] Sweep timed out", port_name);  
+             break;
+        }
+
+        match port.read(&mut scratch) {
+            Ok(1) => {
+                recent.push(scratch[0]);
+                if recent.len() > 3 {
+                    recent.remove(0);
+                }
+                
+                
+                if recent == b"ch>" {
+                    break;
+                }
+            }
+            Ok(_) => { 
+                
+                std::thread::yield_now();
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::yield_now();
+            },
+            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                 // ignore
+            },
+            Err(e) => return Err(e),
+        }
+    }
 
     let cmd = format!("data {}\r\n", data_idx);
     port.write_all(cmd.as_bytes())?;
     port.flush()?;
 
-    let mut buf = vec![0u8; 4096];
+    let mut buf = Vec::new();
+    // Pre-allocate buffer: approx 20-30 bytes per line * um_points
+    buf.reserve(num_points * 30);
+    
     let mut total_read = 0usize;
-
     let start = Instant::now();
-    let max_duration = Duration::from_millis(500);
-    let max_bytes = 32 * 1024;
+    // Timeout for reading data
+    let read_timeout = Duration::from_millis(3000 + (num_points as u64 * 10));
 
-    while start.elapsed() < max_duration && total_read < max_bytes {
-        match port.read(&mut buf[total_read..]) {
-            Ok(0) => break,
+    loop {
+        if start.elapsed() > read_timeout {
+            break;
+        }
+
+        let mut chunk = [0u8; 4096];
+        match port.read(&mut chunk) {
             Ok(n) => {
-                total_read += n;
+                if n > 0 {
+                    buf.extend_from_slice(&chunk[..n]);
+                    total_read += n;
 
-                if total_read + 1024 > buf.len(){
-                    buf.resize(buf.len() + 4096, 0);
+                    // Check for end of data stream ("ch>")
+                    if total_read >= 3 {
+                        let tail = &buf[total_read-3..];
+                        if tail == b"ch>" {
+                            break;
+                        }
+                        // Also check for "ch> " (space) or "ch>\r"
+                        if total_read >= 4 {
+                             let tail4 = &buf[total_read-4..];
+                             if tail4 == b"ch> " || tail4 == b"ch>\r" || tail4 == b"ch>\n" {
+                                 break;
+                             }
+                        }
+                    }
+                } else {
+                    std::thread::yield_now();
                 }
-
-                let newline_count = buf[..total_read].iter().filter(|&&b| b == b'\n').count();
-                if newline_count >= num_points {
-                    break;
-                }
-
-                if buf[..total_read].windows(3).any(|w| w == b"ch>") {
-                    break;
-                }
-            }
+            },
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::sleep(Duration::from_millis(10));
-                continue;
+                std::thread::yield_now();
             }
-
             Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                break;
-            }
+                 // ignore
+            },
             Err(e) => return Err(e),
         }
     }
 
-    let sweep_ascii = String::from_utf8_lossy(&buf[..total_read]).to_string();
+    let sweep_ascii = String::from_utf8_lossy(&buf).to_string();
     Ok((total_read, sweep_ascii))
 }
 
