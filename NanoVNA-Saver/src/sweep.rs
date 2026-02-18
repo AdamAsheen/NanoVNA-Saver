@@ -187,7 +187,6 @@ fn perform_sweep(
 
     loop {
         if start.elapsed() > sweep_timeout {
-             eprintln!("[{}] Sweep timed out", port_name);  
              break;
         }
 
