@@ -621,4 +621,4 @@ mod tests {
         // At least 101 lines again
         assert!(text.lines().count() >= 101);
     }
-
+}
