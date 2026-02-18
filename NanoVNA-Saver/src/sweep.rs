@@ -460,7 +460,7 @@ mod tests {
         clear_shell(&mut mock);
     }
 
-}
+
 
 
     #[test]
