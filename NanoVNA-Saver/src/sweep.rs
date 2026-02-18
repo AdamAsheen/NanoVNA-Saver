@@ -426,7 +426,7 @@ mod tests {
                 Ok(len)
             });
 
-        let text = perform_sweep(&mut mock, 1, 101).unwrap().1;
+        let text = perform_sweep(&mut mock, 1, 101, 50_000, 900_000_000).unwrap().1;
         let expected = "0.000000,0.000000\r\n".repeat(101);
 
         assert_eq!(text, expected);
