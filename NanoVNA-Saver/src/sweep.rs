@@ -220,9 +220,8 @@ fn perform_sweep(
     port.write_all(cmd.as_bytes())?;
     port.flush()?;
 
-    let mut buf = Vec::new();
-    // Pre-allocate buffer: approx 20-30 bytes per line * um_points
-    buf.reserve(num_points * 30);
+    let mut buf = Vec::with_capacity(num_points * 30);
+    // Pre-allocated buffer: approx 20-30 bytes per line * num_points
     
     let mut total_read = 0usize;
     let start = Instant::now();
