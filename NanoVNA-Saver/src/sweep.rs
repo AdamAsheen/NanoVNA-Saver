@@ -444,4 +444,20 @@ mod tests {
         assert_eq!(text.lines().count(), 101);
     }
 
+    
+
+    #[test]
+    fn test_clear_shell() {
+        let mut mock = MockSerialPort::new();
+
+        let _ = mock.expect_read().returning(|buf| {
+                let line = b"0.000000,0.000000\r\n";
+                let len = line.len().min(buf.len());
+                buf[..len].copy_from_slice(&line[..len]);
+                Ok(len)
+            });
+        let _ = mock.expect_clear().returning(|_| Ok::<(), tokio_serial::Error>(()));
+        clear_shell(&mut mock);
+    }
+
 }
