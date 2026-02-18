@@ -42,6 +42,11 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize, start
     for sweep_idx in 0..num_sweeps {
         let sweep_id = Uuid::new_v4();
 
+        let time_cmd_sent_s11 = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs_f64();
+
         match perform_sweep(&mut *port, 0, start_freq, end_freq, num_points) {
             Ok((bytes_read, sweep_data)) => {
                 total_bytes += bytes_read;
@@ -157,7 +162,7 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize, start
                 .unwrap()
                 .as_secs_f64();
 
-            match perform_sweep(&mut *port, 1, num_points) {
+            match perform_sweep(&mut *port, 1, start_freq, end_freq, num_points) {
                 Ok((bytes_read, s21_data)) => {
                     total_bytes += bytes_read;
 
