@@ -1,5 +1,4 @@
 use tokio_serial::{SerialPort, ClearBuffer};
-use core::error;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 use polars::frame::DataFrame;
