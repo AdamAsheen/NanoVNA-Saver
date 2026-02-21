@@ -17,6 +17,9 @@ fn main() {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(2);
 
+    let if_bandwidth = args.get(5)
+        .and_then(|s| s.parse::<u32>().ok());
+
     let ports = tokio_serial::available_ports()
         .expect("Failed to enumerate serial ports");
 
@@ -28,7 +31,13 @@ fn main() {
 
 
     // Checks if the serial port is connected
-    let vnas_to_use = ports.into_iter().take(vna_number);
+    let vnas_to_use = vec![
+        tokio_serial::SerialPortInfo {
+            port_name: "/dev/cu.usbmodem4001".to_string(),
+            port_type: tokio_serial::SerialPortType::Unknown,}
+    ]
+    .into_iter()
+    .take(vna_number);
     // Print line for table header
     println!("| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |");
 
@@ -39,7 +48,7 @@ fn main() {
         let vna_number = idx + 1; 
 
         let handle = thread::spawn(move || {
-            sweep::run_on_port(port_name, num_sweeps, vna_number, num_ports);
+            sweep::run_on_port(port_name, num_sweeps, vna_number, num_ports, if_bandwidth);
         });
 
         handles.push(handle);
