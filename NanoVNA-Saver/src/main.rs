@@ -2,6 +2,20 @@ use std::thread;
 
 mod sweep;
 
+    //********************************************************************************************************
+    //********************************************************************************************************
+    //******************************************Command Line Format*******************************************
+    // *******************************************************************************************************
+    //cargo run [number_of_sweeps] [vna_number] [start_freq] [end_freq] [num_points] [num_ports] [if_bandwidth]
+    //*****defaults to 1 sweep, 1 vna, start frequency 50kHz, end frequency 900MHz, number of points 101******
+    //********************************************************************************************************
+    //************Maximum number of points is 101, if the input number is more it will default to 101*********
+    //********************************************************************************************************
+    //************************************************Example*************************************************
+    //**********************************cargo run 5 1 50_000 900_000_000 101**********************************
+    //********************************************************************************************************
+
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -13,11 +27,28 @@ fn main() {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(1);
 
-    let num_ports = args.get(3)
+    let start_freq: u64 = args.get(3)
+        .unwrap_or(&"50_000".to_string())
+        .replace('_', "")
+        .parse()
+        .unwrap();
+    let end_freq: u64 = args.get(4)
+        .unwrap_or(&"900_000_000".to_string())
+        .replace('_', "")
+        .parse()
+        .unwrap();
+    let num_points: usize = args.get(5)
+        .unwrap_or(&"101".to_string())
+        .replace('_', "")
+        .parse()
+        .unwrap_or(101)
+        .min(101);
+
+    let num_ports: usize = args.get(6)
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(2);
 
-    let if_bandwidth = args.get(5)
+    let if_bandwidth = args.get(7)
         .and_then(|s| s.parse::<u32>().ok());
 
     let ports = tokio_serial::available_ports()
@@ -43,8 +74,18 @@ fn main() {
         let port_name = port.port_name.clone();
         let vna_number = idx + 1; 
 
+        let params = sweep::SweepParams {
+            port_name,
+            num_sweeps,
+            vna_number,
+            start_freq,
+            end_freq,
+            num_points,
+            num_ports,
+            if_bandwidth,
+        };
         let handle = thread::spawn(move || {
-            sweep::run_on_port(port_name, num_sweeps, vna_number, num_ports, if_bandwidth);
+            sweep::run_on_port(params);
         });
 
         handles.push(handle);
