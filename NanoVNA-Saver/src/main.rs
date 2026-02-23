@@ -6,7 +6,7 @@ mod sweep;
     //********************************************************************************************************
     //******************************************Command Line Format*******************************************
     // *******************************************************************************************************
-    // *******cargo run [number_of_sweeps] [vna_number] [start_freq] [end_freq] [num_points] [num_ports]******
+    //cargo run [number_of_sweeps] [vna_number] [start_freq] [end_freq] [num_points] [num_ports] [if_bandwidth]
     //*****defaults to 1 sweep, 1 vna, start frequency 50kHz, end frequency 900MHz, number of points 101******
     //********************************************************************************************************
     //************Maximum number of points is 101, if the input number is more it will default to 101*********
@@ -70,7 +70,7 @@ fn main() {
         let vna_number = idx + 1; 
 
         let handle = thread::spawn(move || {
-            sweep::run_on_port(port_name, num_sweeps, vna_number, start_freq, end_freq, num_points, num_ports);
+            sweep::run_on_port(port_name, num_sweeps, vna_number, start_freq, end_freq, num_points, num_ports, if_bandwidth);
         });
 
         handles.push(handle);
