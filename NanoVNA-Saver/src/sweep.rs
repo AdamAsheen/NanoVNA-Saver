@@ -25,6 +25,33 @@ pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize, start
     let label = "default_label".to_string();
     let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
 
+    // Allow IF bandwidth to be chosen from terminal instead of the shell 
+    if let Some(bw) = if_bandwidth {
+        let _ = port.clear(ClearBuffer::Input);
+
+        let set_cmd = format!("bandwidth {}\r\n", bw);
+        if let Err(e) = port.write_all(set_cmd.as_bytes()) {
+            eprintln!("[{}] Error failed to set bandwidth: {}", port_name, e)
+        }
+        let _ = port.flush();
+
+        std::thread::sleep(Duration::from_millis(100));
+
+        let mut resp_buff = [0u8; 512];
+        match port.read(&mut resp_buff) {
+            Ok(n) if n > 0 => {
+                let response = String::from_utf8_lossy(&resp_buff[..n]);
+                println!("[{}] IF bandwidth response:\n{}", port_name, response.trim());
+            }
+            Ok(_) => {
+                eprint!("[{}] IF bandwidth set response: <empty>", port_name)
+            }
+            Err(e) => {
+                eprint!("[{}] Failed to read bandwidth response: {}", port_name, e)
+            }
+        }
+        clear_shell(&mut *port);
+    }
 
     let start_time = Instant::now();
     let mut total_bytes = 0usize;

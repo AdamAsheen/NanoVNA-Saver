@@ -48,6 +48,9 @@ fn main() {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(2);
 
+    let if_bandwidth = args.get(5)
+        .and_then(|s| s.parse::<u32>().ok());
+
     let ports = tokio_serial::available_ports()
         .expect("Failed to enumerate serial ports");
 
@@ -59,7 +62,9 @@ fn main() {
 
 
     // Checks if the serial port is connected
-    let vnas_to_use = ports.into_iter().take(vna_number);
+    let vnas_to_use = ports
+        .into_iter()
+        .take(vna_number);
     // Print line for table header
     println!("| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |");
 
