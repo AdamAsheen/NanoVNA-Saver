@@ -48,7 +48,7 @@ fn main() {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(2);
 
-    let if_bandwidth = args.get(5)
+    let if_bandwidth = args.get(7)
         .and_then(|s| s.parse::<u32>().ok());
 
     let ports = tokio_serial::available_ports()
@@ -74,8 +74,18 @@ fn main() {
         let port_name = port.port_name.clone();
         let vna_number = idx + 1; 
 
+        let params = sweep::SweepParams {
+            port_name,
+            num_sweeps,
+            vna_number,
+            start_freq,
+            end_freq,
+            num_points,
+            num_ports,
+            if_bandwidth,
+        };
         let handle = thread::spawn(move || {
-            sweep::run_on_port(port_name, num_sweeps, vna_number, start_freq, end_freq, num_points, num_ports, if_bandwidth);
+            sweep::run_on_port(params);
         });
 
         handles.push(handle);

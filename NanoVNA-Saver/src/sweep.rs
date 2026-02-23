@@ -5,7 +5,29 @@ use polars::frame::DataFrame;
 use polars::series::Series;
 use polars::prelude::NamedFrom;
 
-pub fn run_on_port(port_name: String, num_sweeps: usize, vna_number:usize, start_freq: u64, end_freq: u64, num_points: usize, num_ports: usize, if_bandwidth: Option<u32>) {
+#[derive(Clone, Debug)]
+pub struct SweepParams {
+    pub port_name: String,
+    pub num_sweeps: usize,
+    pub vna_number: usize,
+    pub start_freq: u64,
+    pub end_freq: u64,
+    pub num_points: usize,
+    pub num_ports: usize,
+    pub if_bandwidth: Option<u32>,
+}
+
+pub fn run_on_port(params: SweepParams) {
+    let SweepParams {
+        port_name,
+        num_sweeps,
+        vna_number,
+        start_freq,
+        end_freq,
+        num_points,
+        num_ports,
+        if_bandwidth,
+    } = params;
     println!("[{}] Starting VNA worker", port_name);
 
     let builder = tokio_serial::new(&port_name, 115200)
