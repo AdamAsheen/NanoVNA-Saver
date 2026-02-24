@@ -7,10 +7,10 @@ mod sweep;
 #[command(about = "Performs NanoVNA sweeps with configurable parameters")]
 struct Args {
 
-    #[arg(long, default_value_t = 1)]
+    #[arg(short = 's', long, default_value_t = 1)]
     num_sweeps: usize,
-
-    #[arg(long, default_value_t = 1)]
+    
+    #[arg(short = 'd', long, default_value_t = 1)]
     vna_number: usize,
 
     #[arg(long, default_value_t = 50_000)]
@@ -19,13 +19,13 @@ struct Args {
     #[arg(long, default_value_t = 900_000_000)]
     end_freq: u64,
 
-    #[arg(long, default_value_t = 101)]
+    #[arg(short = 'p', long, default_value_t = 101)]
     num_points: usize,
 
     #[arg(long, default_value_t = 2)]
     num_ports: usize,
 
-    #[arg(long)]
+    #[arg(short = 'i', long)]
     if_bandwidth: Option<u32>,
 }
 
