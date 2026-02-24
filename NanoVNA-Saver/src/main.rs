@@ -33,7 +33,7 @@ struct Args {
     #[arg(long, default_value_t = 900_000_000)]
     end_freq: u64,
 
-    #[arg(long, default_value_t = 101, value_parser = clap::value_parser!(usize).range(1..=101))]
+    #[arg(long, default_value_t = 101)]
     num_points: usize,
 
     #[arg(long, default_value_t = 2)]
@@ -46,6 +46,16 @@ struct Args {
 fn main() {
 
     let args = Args::parse();
+
+    let Args {
+    num_sweeps,
+    vna_number,
+    start_freq,
+    end_freq,
+    num_points,
+    num_ports,
+    if_bandwidth,
+    } = args;
 
     let ports = tokio_serial::available_ports()
         .expect("Failed to enumerate serial ports");
