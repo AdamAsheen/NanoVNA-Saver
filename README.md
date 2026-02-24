@@ -10,6 +10,7 @@ The motivation behind the NanoVNA saver tool was to create a tool faster than ex
 
 ### Usage
 The usage of the tool is as follow, all flags are completely optional and ommision of flags will result in default values being used instead.
+```bash
 Usage: NanoVNA-Saver [OPTIONS]
 
 Options:
@@ -20,4 +21,5 @@ Options:
   -p, --num-points <NUM_POINTS>      [default: 101]
       --num-ports <NUM_PORTS>        [default: 2]
   -i, --if-bandwidth <IF_BANDWIDTH>
-  -h, --help                         Print help 
+  -h, --help                         Print help
+```
