@@ -1,5 +1,5 @@
 use std::thread;
-
+use clap::Parser;
 mod sweep;
 
     //********************************************************************************************************
@@ -16,40 +16,36 @@ mod sweep;
     //********************************************************************************************************
 
 
+#[derive(Parser, Debug)]
+#[command(name = "nanovna-saver")]
+#[command(about = "Performs NanoVNA sweeps with configurable parameters")]
+struct Args {
+
+    #[arg(long, default_value_t = 1)]
+    num_sweeps: usize,
+
+    #[arg(long, default_value_t = 1)]
+    vna_number: usize,
+
+    #[arg(long, default_value_t = 50_000)]
+    start_freq: u64,
+
+    #[arg(long, default_value_t = 900_000_000)]
+    end_freq: u64,
+
+    #[arg(long, default_value_t = 101, value_parser = clap::value_parser!(usize).range(1..=101))]
+    num_points: usize,
+
+    #[arg(long, default_value_t = 2)]
+    num_ports: usize,
+
+    #[arg(long)]
+    if_bandwidth: Option<u32>,
+}
+
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
 
-    let num_sweeps = args.get(1)
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(1);
-
-    let vna_number = args.get(2)
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(1);
-
-    let start_freq: u64 = args.get(3)
-        .unwrap_or(&"50_000".to_string())
-        .replace('_', "")
-        .parse()
-        .unwrap();
-    let end_freq: u64 = args.get(4)
-        .unwrap_or(&"900_000_000".to_string())
-        .replace('_', "")
-        .parse()
-        .unwrap();
-    let num_points: usize = args.get(5)
-        .unwrap_or(&"101".to_string())
-        .replace('_', "")
-        .parse()
-        .unwrap_or(101)
-        .min(101);
-
-    let num_ports: usize = args.get(6)
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(2);
-
-    let if_bandwidth = args.get(7)
-        .and_then(|s| s.parse::<u32>().ok());
+    let args = Args::parse();
 
     let ports = tokio_serial::available_ports()
         .expect("Failed to enumerate serial ports");
@@ -58,7 +54,6 @@ fn main() {
         eprintln!("No VNAs found");
         return;
     }
-
 
 
     // Checks if the serial port is connected
