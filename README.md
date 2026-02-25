@@ -7,6 +7,9 @@ A NanoVNA is a vector network analyser that measures the magnitude and phase of 
 The motivation behind the NanoVNA saver tool was to create a tool faster than exisiting solutions to accruately read and save data. This tool is also ableto read data from multiple NanoVNAs at the same time. While our tool is primarily to save NanoVNA readings our tool also supports a number of different NanoVNA configuration options, that being the ability to configure start and stop frequency and the ability to configure the internal NanoVNA IF bandwidth. 
 
 ### Benchmarks
+Our solution is 8.4 times faster than existing solutions below you can see a comparison of speeds 
+Python solution average speed per sweep: 4.2 seconds 
+Rust solutiion average speed per sweep: 0.02 seconds
 
 ### Usage
 The usage of the tool is as follow, all flags are completely optional and ommision of flags will result in default values being used instead.
