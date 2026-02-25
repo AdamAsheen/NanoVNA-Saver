@@ -549,9 +549,18 @@ mod tests {
         mock.expect_clear()
             .returning(|_| Ok::<(), tokio_serial::Error>(()));
 
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| { buf[0] = b'c'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| { buf[0] = b'h'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| { buf[0] = b'>'; Ok(1) });
 
         let partial = "x\n".repeat(20).into_bytes();
         let called = Cell::new(false);
@@ -584,9 +593,18 @@ mod tests {
         mock.expect_clear()
             .returning(|_| Ok::<(), tokio_serial::Error>(()));
 
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| { buf[0] = b'c'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| { buf[0] = b'h'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| { buf[0] = b'>'; Ok(1) });
 
         let mut data = "x\n".repeat(101);
         data.push_str("ch>");
@@ -620,24 +638,21 @@ mod tests {
         assert!(text.lines().count() >= 101);
     }
 
-    
-
     #[test]
     fn test_clear_shell() {
         let mut mock = MockSerialPort::new();
 
         let _ = mock.expect_read().returning(|buf| {
-                let line = b"0.000000,0.000000\r\n";
-                let len = line.len().min(buf.len());
-                buf[..len].copy_from_slice(&line[..len]);
-                Ok(len)
-            });
-        let _ = mock.expect_clear().returning(|_| Ok::<(), tokio_serial::Error>(()));
+            let line = b"0.000000,0.000000\r\n";
+            let len = line.len().min(buf.len());
+            buf[..len].copy_from_slice(&line[..len]);
+            Ok(len)
+        });
+        let _ = mock
+            .expect_clear()
+            .returning(|_| Ok::<(), tokio_serial::Error>(()));
         clear_shell(&mut mock);
     }
-
-
-
 
     #[test]
     fn test_perform_sweep_sends_correct_num_points() {
@@ -654,12 +669,33 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(|_| Ok(()));
             
-        mock.expect_flush().times(1).in_sequence(&mut seq).returning(|| Ok(()));
+        mock.expect_flush()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|| Ok(()));
 
         // Wait for prompt
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'c';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'h';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'>';
+                Ok(1)
+            });
 
         // Expect data command
         mock.expect_write_all()
@@ -668,17 +704,18 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(|_| Ok(()));
 
-        mock.expect_flush().times(1).in_sequence(&mut seq).returning(|| Ok(()));
+        mock.expect_flush()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|| Ok(()));
 
         // Return empty data + prompt
-        mock.expect_read()
-            .in_sequence(&mut seq)
-            .returning(|buf| {
-                let data = b"ch>";
-                let len = data.len().min(buf.len());
-                buf[..len].copy_from_slice(&data[..len]);
-                Ok(len)
-            });
+        mock.expect_read().in_sequence(&mut seq).returning(|buf| {
+            let data = b"ch>";
+            let len = data.len().min(buf.len());
+            buf[..len].copy_from_slice(&data[..len]);
+            Ok(len)
+        });
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
         // Call with 50 points
