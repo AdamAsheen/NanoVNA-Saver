@@ -43,6 +43,12 @@ fn main() {
     if_bandwidth,
     } = args;
 
+        // Limit num_points to 101 if more are typed
+    if num_points > 101 {
+        println!("num_points limited to 101 (was {})", num_points);
+        num_points = 101;
+    }
+
     let ports = tokio_serial::available_ports()
         .expect("Failed to enumerate serial ports");
 
