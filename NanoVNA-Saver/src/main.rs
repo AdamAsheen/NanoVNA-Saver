@@ -38,7 +38,7 @@ fn main() {
     vna_number,
     start_freq,
     end_freq,
-    num_points,
+    mut num_points,
     num_ports,
     if_bandwidth,
     } = args;
