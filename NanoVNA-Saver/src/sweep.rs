@@ -17,7 +17,7 @@ pub struct SweepParams {
     pub if_bandwidth: Option<u32>,
 }
 
-pub fn run_on_port(params: SweepParams) {
+pub fn run_on_port(params: SweepParams) -> DataFrame {
     let SweepParams {
         port_name,
         num_sweeps,
@@ -229,8 +229,6 @@ pub fn run_on_port(params: SweepParams) {
         Series::new("imag", imag_parts),
     ]).expect("Failed to create DataFrame");
 
-    println!("{}", df);
-
     println!(
         "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
         port_name,
@@ -238,6 +236,8 @@ pub fn run_on_port(params: SweepParams) {
         total_bytes,
         elapsed
     );
+
+    df
 }
 
 fn clear_shell(port: &mut dyn SerialPort) {
