@@ -114,6 +114,18 @@ fn main() {
 
     for df in iter {
         final_df.vstack_mut(&df).expect("Failed to stack DataFrames");
-}
+    }
+
+    
+    let mut file = File::create(&output_path)
+    .expect("Failed to create CSV file");
+
+    CsvWriter::new(&mut file)
+    .has_header(true)
+    .finish(&mut final_df)
+    .expect("Failed to write CSV");
+
+    println!("Saved CSV to {:?}", output_path);
+
 }
 
