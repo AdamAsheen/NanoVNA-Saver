@@ -1,8 +1,7 @@
 use std::thread;
 use clap::Parser;
 use std::path::PathBuf;
-use polars::frame::DataFrame;
-use polars::prelude::CsvWriter;
+use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 mod sweep;
 
