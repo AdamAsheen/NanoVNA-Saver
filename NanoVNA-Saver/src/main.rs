@@ -104,7 +104,7 @@ fn main() {
     let mut dataframes = Vec::new();
 
     for h in handles {
-        let df = h.join().expect("Thread panicked");
+        let df = h.join().expect("Thread panicked").expect("Sweep failed");;
         dataframes.push(df);
     }
 
