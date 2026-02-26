@@ -1,5 +1,8 @@
 use std::thread;
 use clap::Parser;
+use std::path::PathBuf;
+use polars::prelude::{CsvWriter, SerWriter};
+use std::fs::File;
 mod sweep;
 
 #[derive(Parser, Debug)]
@@ -27,11 +30,20 @@ struct Args {
 
     #[arg(long)]
     if_bandwidth: Option<u32>,
+
+    #[arg(long)]
+    path: Option<PathBuf>,
+
 }
 
 fn main() {
 
     let args = Args::parse();
+
+    let output_path = args.path.unwrap_or_else(|| {
+    std::env::current_dir()
+        .expect("Failed to get current working directory").join("output.csv")
+    });
 
     let Args {
     num_sweeps,
@@ -41,6 +53,7 @@ fn main() {
     mut num_points,
     num_ports,
     if_bandwidth,
+    ..
     } = args;
 
         // Limit num_points to 101 if more are typed
@@ -82,14 +95,36 @@ fn main() {
             if_bandwidth,
         };
         let handle = thread::spawn(move || {
-            sweep::run_on_port(params);
+            sweep::run_on_port(params)
         });
 
         handles.push(handle);
     }
 
+    let mut dataframes = Vec::new();
+
     for h in handles {
-        h.join().unwrap();
+        let df = h.join().expect("Thread panicked").expect("Sweep failed");
+        dataframes.push(df);
     }
+
+    let mut iter = dataframes.into_iter();
+    let mut final_df = iter.next().expect("No data collected");
+
+    for df in iter {
+        final_df.vstack_mut(&df).expect("Failed to stack DataFrames");
+    }
+
+    
+    let mut file = File::create(&output_path)
+    .expect("Failed to create CSV file");
+
+    CsvWriter::new(&mut file)
+    .include_header(true)
+    .finish(&mut final_df)
+    .expect("Failed to write CSV");
+
+    println!("Saved CSV to {:?}", output_path);
+
 }
 
