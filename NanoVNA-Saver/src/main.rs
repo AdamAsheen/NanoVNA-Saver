@@ -1,6 +1,9 @@
 use std::thread;
 use clap::Parser;
 use std::path::PathBuf;
+use polars::frame::DataFrame;
+use polars::prelude::CsvWriter;
+use std::fs::File;
 mod sweep;
 
 #[derive(Parser, Debug)]
@@ -93,14 +96,24 @@ fn main() {
             if_bandwidth,
         };
         let handle = thread::spawn(move || {
-            sweep::run_on_port(params);
+            sweep::run_on_port(params)
         });
 
         handles.push(handle);
     }
 
+    let mut dataframes = Vec::new();
+
     for h in handles {
-        h.join().unwrap();
+        let df = h.join().expect("Thread panicked");
+        dataframes.push(df);
     }
+
+    let mut iter = dataframes.into_iter();
+    let mut final_df = iter.next().expect("No data collected");
+
+    for df in iter {
+        final_df.vstack_mut(&df).expect("Failed to stack DataFrames");
+}
 }
 
