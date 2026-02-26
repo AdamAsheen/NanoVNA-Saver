@@ -18,7 +18,7 @@ pub struct SweepParams {
     pub if_bandwidth: Option<u32>,
 }
 
-pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error>> {
+pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Send + Sync>> {
     let SweepParams {
         port_name,
         num_sweeps,
