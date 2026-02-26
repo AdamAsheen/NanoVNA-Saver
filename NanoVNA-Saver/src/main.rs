@@ -1,5 +1,6 @@
 use std::thread;
 use clap::Parser;
+use std::path::PathBuf;
 mod sweep;
 
 #[derive(Parser, Debug)]
@@ -27,11 +28,20 @@ struct Args {
 
     #[arg(long)]
     if_bandwidth: Option<u32>,
+
+    #[arg(long)]
+    path: Option<PathBuf>,
+
 }
 
 fn main() {
 
     let args = Args::parse();
+
+    let output_path = args.path.unwrap_or_else(|| {
+    std::env::current_dir()
+        .expect("Failed to get current working directory").join("output.csv")
+    });
 
     let Args {
     num_sweeps,
@@ -41,6 +51,7 @@ fn main() {
     mut num_points,
     num_ports,
     if_bandwidth,
+    ..
     } = args;
 
         // Limit num_points to 101 if more are typed
