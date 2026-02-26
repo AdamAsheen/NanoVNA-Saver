@@ -4,6 +4,7 @@ use uuid::Uuid;
 use polars::frame::DataFrame;
 use polars::series::Series;
 use polars::prelude::NamedFrom;
+use std::error::Error;
 
 #[derive(Clone, Debug)]
 pub struct SweepParams {
@@ -17,7 +18,7 @@ pub struct SweepParams {
     pub if_bandwidth: Option<u32>,
 }
 
-pub fn run_on_port(params: SweepParams) -> DataFrame {
+pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error>> {
     let SweepParams {
         port_name,
         num_sweeps,
@@ -37,7 +38,7 @@ pub fn run_on_port(params: SweepParams) -> DataFrame {
         Ok(p) => p,
         Err(e) => {
             eprintln!("[{}] Failed to open port: {}", port_name, e);
-            return;
+            return Err("Failed to open port".into());
         }
     };
 
@@ -236,8 +237,8 @@ pub fn run_on_port(params: SweepParams) -> DataFrame {
         total_bytes,
         elapsed
     );
-
-    df
+    
+    Ok(df)
 }
 
 fn clear_shell(port: &mut dyn SerialPort) {
