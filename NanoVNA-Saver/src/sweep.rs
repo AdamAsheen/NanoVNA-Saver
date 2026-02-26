@@ -107,6 +107,16 @@ pub fn run_on_port(params: SweepParams) {
                     bytes_read
                 );
 
+            sweep_ids.push(sweep_id.to_string());
+            labels.push(label.clone());
+            vna_numbers.push(vna_number as i32);
+            time_cmd_sent_vec.push(time_cmd_sent_s11);
+            time_received_vec.push(time_reading_received);
+            frequencies.push(freq);
+            channels.push("S11".to_string());
+            real_parts.push(real);
+            imag_parts.push(imag);
+
             let mut point_index =0usize;
 
             for line in sweep_data.lines() {
