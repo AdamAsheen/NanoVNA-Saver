@@ -104,7 +104,7 @@ fn main() {
     let mut dataframes = Vec::new();
 
     for h in handles {
-        let df = h.join().expect("Thread panicked").expect("Sweep failed");;
+        let df = h.join().expect("Thread panicked").expect("Sweep failed");
         dataframes.push(df);
     }
 
@@ -120,7 +120,7 @@ fn main() {
     .expect("Failed to create CSV file");
 
     CsvWriter::new(&mut file)
-    .has_header(true)
+    .include_header(true)
     .finish(&mut final_df)
     .expect("Failed to write CSV");
 
