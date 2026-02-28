@@ -4,6 +4,7 @@ use polars::series::Series;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio_serial::{ClearBuffer, SerialPort};
 use uuid::Uuid;
+use std::error::Error;
 
 #[derive(Clone, Debug)]
 pub struct SweepParams {
@@ -17,7 +18,7 @@ pub struct SweepParams {
     pub if_bandwidth: Option<u32>,
 }
 
-pub fn run_on_port(params: SweepParams) {
+pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Send + Sync>> {
     let SweepParams {
         port_name,
         num_sweeps,
@@ -36,7 +37,7 @@ pub fn run_on_port(params: SweepParams) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("[{}] Failed to open port: {}", port_name, e);
-            return;
+            return Err("Failed to open port".into());
         }
     };
 
@@ -154,6 +155,16 @@ pub fn run_on_port(params: SweepParams) {
                         imag
                     );
 
+                sweep_ids.push(sweep_id.to_string());
+                labels.push(label.clone());
+                vna_numbers.push(vna_number as i32);
+                time_cmd_sent_vec.push(time_cmd_sent_s11);
+                time_received_vec.push(time_reading_received);
+                frequencies.push(freq);
+                channels.push("S11".to_string());
+                real_parts.push(real);
+                imag_parts.push(imag); 
+
                     point_index += 1;
                     if point_index >= num_points {
                         break;
@@ -248,12 +259,12 @@ pub fn run_on_port(params: SweepParams) {
     ])
     .expect("Failed to create DataFrame");
 
-    println!("{}", df);
-
     println!(
         "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
         port_name, num_sweeps, total_bytes, elapsed
     );
+    
+    Ok(df)
 }
 
 fn clear_shell(port: &mut dyn SerialPort) {
