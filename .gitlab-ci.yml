@@ -19,7 +19,6 @@ rust-latest:
   script:
     - cd NanoVNA-Saver
     - cargo build --verbose
-    - cargo test --verbose
 
 test:
   stage: test
