@@ -1,10 +1,10 @@
-use tokio_serial::{SerialPort, ClearBuffer};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use uuid::Uuid;
 use polars::frame::DataFrame;
-use polars::series::Series;
 use polars::prelude::NamedFrom;
+use polars::series::Series;
 use std::error::Error;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio_serial::{ClearBuffer, SerialPort};
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct SweepParams {
@@ -31,8 +31,7 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
     } = params;
     println!("[{}] Starting VNA worker", port_name);
 
-    let builder = tokio_serial::new(&port_name, 115200)
-        .timeout(Duration::from_millis(100));
+    let builder = tokio_serial::new(&port_name, 115200).timeout(Duration::from_millis(100));
 
     let mut port = match builder.open() {
         Ok(p) => p,
@@ -44,11 +43,11 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
 
     clear_shell(&mut *port);
 
-    // Seperation of titles and headers 
+    // Seperation of titles and headers
     let label = "default_label".to_string();
     let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
 
-    // Allow IF bandwidth to be chosen from terminal instead of the shell 
+    // Allow IF bandwidth to be chosen from terminal instead of the shell
     if let Some(bw) = if_bandwidth {
         let _ = port.clear(ClearBuffer::Input);
 
@@ -64,7 +63,11 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
         match port.read(&mut resp_buff) {
             Ok(n) if n > 0 => {
                 let response = String::from_utf8_lossy(&resp_buff[..n]);
-                println!("[{}] IF bandwidth response:\n{}", port_name, response.trim());
+                println!(
+                    "[{}] IF bandwidth response:\n{}",
+                    port_name,
+                    response.trim()
+                );
             }
             Ok(_) => {
                 eprint!("[{}] IF bandwidth set response: <empty>", port_name)
@@ -88,14 +91,13 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
     let mut real_parts = Vec::new();
     let mut imag_parts = Vec::new();
 
-
     for sweep_idx in 0..num_sweeps {
         let sweep_id = Uuid::new_v4();
 
         let time_cmd_sent_s11 = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs_f64();
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs_f64();
 
         match perform_sweep(&mut *port, 0, start_freq, end_freq, num_points) {
             Ok((bytes_read, sweep_data)) => {
@@ -108,63 +110,74 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                     bytes_read
                 );
 
-               let mut point_index =0usize;
+                let mut point_index = 0usize;
 
-            for line in sweep_data.lines() {
-                let line = line.trim();
-                if line.is_empty() { continue; }
-                if line.starts_with("NanoVNA") { continue; }
-                if line.starts_with("ch>") { continue; }
-                if line.starts_with("data") { continue; }
+                for line in sweep_data.lines() {
+                    let line = line.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+                    if line.starts_with("NanoVNA") {
+                        continue;
+                    }
+                    if line.starts_with("ch>") {
+                        continue;
+                    }
+                    if line.starts_with("data") {
+                        continue;
+                    }
 
-                let mut it = line.split_whitespace();
-                let (Some(real_s), Some(imag_s)) = (it.next(), it.next()) else { continue; };
+                    let mut it = line.split_whitespace();
+                    let (Some(real_s), Some(imag_s)) = (it.next(), it.next()) else {
+                        continue;
+                    };
 
-                let (Ok(real), Ok(imag)) = 
-                    (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; }; 
+                    let (Ok(real), Ok(imag)) = (real_s.parse::<f64>(), imag_s.parse::<f64>())
+                    else {
+                        continue;
+                    };
 
-                let freq = start_freq as f64 + point_index as f64 * step_freq;
-                let time_reading_received = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs_f64();
+                    let freq = start_freq as f64 + point_index as f64 * step_freq;
+                    let time_reading_received = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs_f64();
 
-                sweep_ids.push(sweep_id.to_string());
-                labels.push(label.clone());
-                vna_numbers.push(vna_number as i32);
-                time_cmd_sent_vec.push(time_cmd_sent_s11);
-                time_received_vec.push(time_reading_received);
-                frequencies.push(freq);
-                channels.push("S11".to_string());
-                real_parts.push(real);
-                imag_parts.push(imag); 
+                    sweep_ids.push(sweep_id.to_string());
+                    labels.push(label.clone());
+                    vna_numbers.push(vna_number as i32);
+                    time_cmd_sent_vec.push(time_cmd_sent_s11);
+                    time_received_vec.push(time_reading_received);
+                    frequencies.push(freq);
+                    channels.push("S11".to_string());
+                    real_parts.push(real);
+                    imag_parts.push(imag);
 
-                println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
-                    sweep_id, label, vna_number,
-                    time_cmd_sent_s11, time_reading_received,
-                    freq, real, imag
-                );
+                    println!(
+                        "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
+                        sweep_id,
+                        label,
+                        vna_number,
+                        time_cmd_sent_s11,
+                        time_reading_received,
+                        freq,
+                        real,
+                        imag
+                    );
 
-                point_index += 1;
-                if point_index >= num_points {
-                    break;
+                    point_index += 1;
+                    if point_index >= num_points {
+                        break;
+                    }
                 }
             }
-
-            }
             Err(e) => {
-                eprintln!(
-                    "[{}] Sweep {} S11 failed: {}",
-                    port_name,
-                    sweep_idx + 1,
-                    e
-                );
+                eprintln!("[{}] Sweep {} S11 failed: {}", port_name, sweep_idx + 1, e);
                 break;
             }
         }
-        
 
-        // for S21 port (data 1) 
+        // for S21 port (data 1)
         if num_ports == 2 {
             let time_cmd_sent_s21 = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -179,14 +192,27 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
 
                     for line in s21_data.lines() {
                         let line = line.trim();
-                        if line.is_empty() { continue; }
-                        if line.starts_with("NanoVNA") { continue; }
-                        if line.starts_with("ch>") { break; }
-                        if line.starts_with("data") { continue; }
+                        if line.is_empty() {
+                            continue;
+                        }
+                        if line.starts_with("NanoVNA") {
+                            continue;
+                        }
+                        if line.starts_with("ch>") {
+                            break;
+                        }
+                        if line.starts_with("data") {
+                            continue;
+                        }
 
                         let mut it = line.split_whitespace();
-                        let (Some(real_s), Some(imag_s)) = (it.next(), it.next()) else { continue; };
-                        let (Ok(real), Ok(imag)) = (real_s.parse::<f64>(), imag_s.parse::<f64>()) else { continue; };
+                        let (Some(real_s), Some(imag_s)) = (it.next(), it.next()) else {
+                            continue;
+                        };
+                        let (Ok(real), Ok(imag)) = (real_s.parse::<f64>(), imag_s.parse::<f64>())
+                        else {
+                            continue;
+                        };
 
                         let freq = start_freq as f64 + point_index as f64 * step_freq;
                         let time_received = SystemTime::now()
@@ -205,7 +231,9 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                         imag_parts.push(imag);
 
                         point_index += 1;
-                        if point_index >= num_points { break; }
+                        if point_index >= num_points {
+                            break;
+                        }
                     }
                 }
                 Err(e) => {
@@ -228,16 +256,14 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
         Series::new("channel", channels),
         Series::new("real", real_parts),
         Series::new("imag", imag_parts),
-    ]).expect("Failed to create DataFrame");
+    ])
+    .expect("Failed to create DataFrame");
 
     println!(
         "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
-        port_name,
-        num_sweeps,
-        total_bytes,
-        elapsed
+        port_name, num_sweeps, total_bytes, elapsed
     );
-    
+
     Ok(df)
 }
 
@@ -254,26 +280,22 @@ fn perform_sweep(
     end_freq: u64,
     num_points: usize,
 ) -> Result<(usize, String), std::io::Error> {
-    
-    
     let _ = port.clear(ClearBuffer::Input);
 
-    
     let cmd = format!("sweep {} {} {}\r\n", start_freq, end_freq, num_points);
     port.write_all(cmd.as_bytes())?;
     port.flush()?;
 
-    
     let mut scratch = [0u8; 1];
     let mut recent = Vec::new(); // keep track of last few bytes to match "ch>"
-    
+
     let start = Instant::now();
     // Timeout for sweep execution can be long if many points
     let sweep_timeout = Duration::from_millis(5000 + (num_points as u64 * 20));
 
     loop {
         if start.elapsed() > sweep_timeout {
-             break;
+            break;
         }
 
         match port.read(&mut scratch) {
@@ -282,22 +304,20 @@ fn perform_sweep(
                 if recent.len() > 3 {
                     recent.remove(0);
                 }
-                
-                
+
                 if recent == b"ch>" {
                     break;
                 }
             }
-            Ok(_) => { 
-                
+            Ok(_) => {
                 std::thread::yield_now();
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 std::thread::yield_now();
-            },
+            }
             Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                 // ignore
-            },
+                // ignore
+            }
             Err(e) => return Err(e),
         }
     }
@@ -308,7 +328,7 @@ fn perform_sweep(
 
     let mut buf = Vec::with_capacity(num_points * 30);
     // Pre-allocated buffer: approx 20-30 bytes per line * num_points
-    
+
     let mut total_read = 0usize;
     let start = Instant::now();
     // Timeout for reading data
@@ -328,28 +348,28 @@ fn perform_sweep(
 
                     // Check for end of data stream ("ch>")
                     if total_read >= 3 {
-                        let tail = &buf[total_read-3..];
+                        let tail = &buf[total_read - 3..];
                         if tail == b"ch>" {
                             break;
                         }
                         // Also check for "ch> " (space) or "ch>\r"
                         if total_read >= 4 {
-                             let tail4 = &buf[total_read-4..];
-                             if tail4 == b"ch> " || tail4 == b"ch>\r" || tail4 == b"ch>\n" {
-                                 break;
-                             }
+                            let tail4 = &buf[total_read - 4..];
+                            if tail4 == b"ch> " || tail4 == b"ch>\r" || tail4 == b"ch>\n" {
+                                break;
+                            }
                         }
                     }
                 } else {
                     std::thread::yield_now();
                 }
-            },
+            }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 std::thread::yield_now();
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                 // ignore
-            },
+                // ignore
+            }
             Err(e) => return Err(e),
         }
     }
@@ -360,12 +380,12 @@ fn perform_sweep(
 
 #[cfg(test)]
 mod tests {
-    use mockall::*;
-    use mockall::predicate::*;
     use super::*;
-    use std::io::Error;
+    use mockall::predicate::*;
+    use mockall::*;
     use std::cell::Cell;
-    use tokio_serial::{DataBits, FlowControl, Parity, StopBits, ClearBuffer, SerialPort};
+    use std::io::Error;
+    use tokio_serial::{ClearBuffer, DataBits, FlowControl, Parity, SerialPort, StopBits};
 
     mock! {
         SerialPort {}
@@ -388,7 +408,7 @@ mod tests {
             fn parity(&self) -> Result<Parity, tokio_serial::Error>;
             fn stop_bits(&self) -> Result<StopBits, tokio_serial::Error>;
             fn timeout(&self) -> Duration;
-            
+
             fn set_baud_rate(&mut self, baud_rate: u32) -> Result<(), tokio_serial::Error>;
             fn set_data_bits(&mut self, data_bits: DataBits) -> Result<(), tokio_serial::Error>;
             fn set_flow_control(
@@ -398,21 +418,21 @@ mod tests {
             fn set_parity(&mut self, parity: Parity) -> Result<(), tokio_serial::Error>;
             fn set_stop_bits(&mut self, stop_bits: StopBits) -> Result<(), tokio_serial::Error>;
             fn set_timeout(&mut self, timeout: Duration) -> Result<(), tokio_serial::Error>;
-            
+
             fn write_request_to_send(&mut self, level: bool) -> Result<(), tokio_serial::Error>;
             fn write_data_terminal_ready(&mut self, level: bool) -> Result<(), tokio_serial::Error>;
-            
+
             fn read_clear_to_send(&mut self) -> Result<bool, tokio_serial::Error>;
             fn read_data_set_ready(&mut self) -> Result<bool, tokio_serial::Error>;
             fn read_ring_indicator(&mut self) -> Result<bool, tokio_serial::Error>;
             fn read_carrier_detect(&mut self) -> Result<bool, tokio_serial::Error>;
-            
+
             fn bytes_to_read(&self) -> Result<u32, tokio_serial::Error>;
             fn bytes_to_write(&self) -> Result<u32, tokio_serial::Error>;
-            
+
             fn clear(&self, buffer_to_clear: ClearBuffer) -> Result<(), tokio_serial::Error>;
             fn try_clone(&self) -> Result<Box<dyn SerialPort>, tokio_serial::Error>;
-            
+
             fn set_break(&self) -> Result<(), tokio_serial::Error>;
             fn clear_break(&self) -> Result<(), tokio_serial::Error>;
         }
@@ -421,15 +441,34 @@ mod tests {
     #[test]
     fn test_perform_sweep_normal_data() {
         let mut mock = MockSerialPort::new();
-        let mut seq = Sequence::new(); 
+        let mut seq = Sequence::new();
 
         mock.expect_write_all().returning(|_| Ok(()));
         mock.expect_flush().returning(|| Ok(()));
-        mock.expect_clear().returning(|_| Ok::<(), tokio_serial::Error>(()));
+        mock.expect_clear()
+            .returning(|_| Ok::<(), tokio_serial::Error>(()));
 
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'c';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'h';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'>';
+                Ok(1)
+            });
 
         mock.expect_read()
             .times(1)
@@ -460,47 +499,27 @@ mod tests {
         mock.expect_clear()
             .returning(|_| Ok::<(), tokio_serial::Error>(()));
 
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
-
-
-        let mut data = "x\n".repeat(101);
-        data.push_str("ch>");
-        let bytes = data.as_bytes().to_vec();
-
-
-        let value = bytes.clone();
         mock.expect_read()
-        .in_sequence(&mut seq)
-        .returning(move |buf| {
-            let len = value.len().min(buf.len());
-            buf[..len].copy_from_slice(&value[..len]);
-            Ok(len)
-        });
-
-        let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
-        let (count, text) = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
-
-        // Check we got at least 101 lines (plus the prompt line)
-        assert!(text.lines().count() >= 101);
-        assert_eq!(count, bytes.len());
-
-    }
-
-    #[test]
-    fn test_stops_after_101_lines_even_if_more_arrives() {
-        let mut mock = MockSerialPort::new();
-        let mut seq = Sequence::new();
-
-        mock.expect_write_all().returning(|_| Ok(()));
-        mock.expect_flush().returning(|| Ok(()));
-        mock.expect_clear()
-            .returning(|_| Ok::<(), tokio_serial::Error>(()));
-
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'c';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'h';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'>';
+                Ok(1)
+            });
 
         let mut data = "x\n".repeat(101);
         data.push_str("ch>");
@@ -513,13 +532,65 @@ mod tests {
                 let len = value.len().min(buf.len());
                 buf[..len].copy_from_slice(&value[..len]);
                 Ok(len)
-        });
+            });
+
+        let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
+        let (count, text) = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
+
+        // Check we got at least 101 lines (plus the prompt line)
+        assert!(text.lines().count() >= 101);
+        assert_eq!(count, bytes.len());
+    }
+
+    #[test]
+    fn test_stops_after_101_lines_even_if_more_arrives() {
+        let mut mock = MockSerialPort::new();
+        let mut seq = Sequence::new();
+
+        mock.expect_write_all().returning(|_| Ok(()));
+        mock.expect_flush().returning(|| Ok(()));
+        mock.expect_clear()
+            .returning(|_| Ok::<(), tokio_serial::Error>(()));
+
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'c';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'h';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'>';
+                Ok(1)
+            });
+
+        let mut data = "x\n".repeat(101);
+        data.push_str("ch>");
+        let bytes = data.as_bytes().to_vec();
+
+        let value = bytes.clone();
+        mock.expect_read()
+            .in_sequence(&mut seq)
+            .returning(move |buf| {
+                let len = value.len().min(buf.len());
+                buf[..len].copy_from_slice(&value[..len]);
+                Ok(len)
+            });
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
         let (_, text) = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
         assert!(text.lines().count() >= 101); // we only guarantee stop condition
     }
-
 
     #[test]
     fn test_command_is_sent() {
@@ -535,9 +606,7 @@ mod tests {
             .times(1)
             .returning(|_| Ok(()));
 
-        mock.expect_flush()
-            .times(2)
-            .returning(|| Ok(()));
+        mock.expect_flush().times(2).returning(|| Ok(()));
 
         mock.expect_clear()
             .returning(|_| Ok::<(), tokio_serial::Error>(()));
@@ -560,9 +629,27 @@ mod tests {
         mock.expect_clear()
             .returning(|_| Ok::<(), tokio_serial::Error>(()));
 
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'c';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'h';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'>';
+                Ok(1)
+            });
 
         let partial = "x\n".repeat(20).into_bytes();
         let called = Cell::new(false);
@@ -595,9 +682,27 @@ mod tests {
         mock.expect_clear()
             .returning(|_| Ok::<(), tokio_serial::Error>(()));
 
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'c'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'h'; Ok(1) });
-        mock.expect_read().times(1).in_sequence(&mut seq).returning(|buf| { buf[0] = b'>'; Ok(1) });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'c';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'h';
+                Ok(1)
+            });
+        mock.expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|buf| {
+                buf[0] = b'>';
+                Ok(1)
+            });
 
         let mut data = "x\n".repeat(101);
         data.push_str("ch>");
@@ -608,7 +713,7 @@ mod tests {
         // We need to use "move" carefully with data inside closure
         // But since we need to clone data for the closure...
         let value = bytes.clone();
-        
+
         mock.expect_read()
             .in_sequence(&mut seq)
             .returning(move |buf| {
