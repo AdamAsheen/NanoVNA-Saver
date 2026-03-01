@@ -5,7 +5,8 @@ stages:
 
 clippy-check:
   stage: lint
-  image: rust:latest
+  tags:
+    - adam-home-pc
   script: 
     - rustup component add clippy
     - rustup component add rustfmt
@@ -15,14 +16,16 @@ clippy-check:
 
 rust-latest:
   stage: build
-  image: rust:latest
+  tags:
+    - adam-home-pc
   script:
     - cd NanoVNA-Saver
     - cargo build --verbose
 
 test:
   stage: test
-  image: rust:latest
+  tags:
+    - adam-home-pc
   script:
     - cd NanoVNA-Saver
     - cargo test --verbose
