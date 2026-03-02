@@ -56,6 +56,7 @@ fn main() {
     mut num_points,
     num_ports,
     if_bandwidth,
+    time,
     ..
     } = args;
 
@@ -96,6 +97,7 @@ fn main() {
             num_points,
             num_ports,
             if_bandwidth,
+            time
         };
         let handle = thread::spawn(move || {
             sweep::run_on_port(params)
