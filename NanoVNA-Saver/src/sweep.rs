@@ -214,6 +214,13 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                         real_parts.push(real);
                         imag_parts.push(imag);
 
+                    println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
+                    sweep_id, label, vna_number,
+                    time_cmd_sent_s21, time_received,
+                    freq, real, imag
+                );
+
+
                         point_index += 1;
                         if point_index >= num_points { break; }
                     }
