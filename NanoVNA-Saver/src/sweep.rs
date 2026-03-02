@@ -1,10 +1,10 @@
 use polars::frame::DataFrame;
 use polars::prelude::NamedFrom;
 use polars::series::Series;
+use std::error::Error;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio_serial::{ClearBuffer, SerialPort};
 use uuid::Uuid;
-use std::error::Error;
 
 #[derive(Clone, Debug)]
 pub struct SweepParams {
@@ -96,10 +96,10 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
     let time_limit = time.map(Duration::from_secs);
     let time_start = Instant::now();
     let mut sweep_idx = 0;
-    while{
-        if let Some(limit) = time_limit{
+    while {
+        if let Some(limit) = time_limit {
             time_start.elapsed() < limit
-        } else{
+        } else {
             sweep_idx < num_sweeps
         }
     } {
@@ -154,6 +154,16 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                         .unwrap()
                         .as_secs_f64();
 
+                    sweep_ids.push(sweep_id.to_string());
+                    labels.push(label.clone());
+                    vna_numbers.push(vna_number as i32);
+                    time_cmd_sent_vec.push(time_cmd_sent_s11);
+                    time_received_vec.push(time_reading_received);
+                    frequencies.push(freq);
+                    channels.push("S11".to_string());
+                    real_parts.push(real);
+                    imag_parts.push(imag);
+
                     println!(
                         "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
                         sweep_id,
@@ -165,16 +175,6 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                         real,
                         imag
                     );
-
-                sweep_ids.push(sweep_id.to_string());
-                labels.push(label.clone());
-                vna_numbers.push(vna_number as i32);
-                time_cmd_sent_vec.push(time_cmd_sent_s11);
-                time_received_vec.push(time_reading_received);
-                frequencies.push(freq);
-                channels.push("S11".to_string());
-                real_parts.push(real);
-                imag_parts.push(imag); 
 
                     point_index += 1;
                     if point_index >= num_points {
@@ -241,6 +241,13 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                         real_parts.push(real);
                         imag_parts.push(imag);
 
+                    println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
+                    sweep_id, label, vna_number,
+                    time_cmd_sent_s21, time_received,
+                    freq, real, imag
+                );
+
+
                         point_index += 1;
                         if point_index >= num_points {
                             break;
@@ -275,7 +282,7 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
         "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
         port_name, num_sweeps, total_bytes, elapsed
     );
-    
+
     Ok(df)
 }
 

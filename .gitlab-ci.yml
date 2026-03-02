@@ -9,7 +9,9 @@ clippy-check:
     - adam-home-pc
   script: 
     - rustup component add clippy
+    - rustup component add rustfmt
     - cd NanoVNA-Saver
+    - cargo fmt --all -- --check
     - cargo clippy --all-targets --all-features -- -Dwarnings
 
 rust-latest:
@@ -19,7 +21,6 @@ rust-latest:
   script:
     - cd NanoVNA-Saver
     - cargo build --verbose
-    - cargo test --verbose
 
 test:
   stage: test
