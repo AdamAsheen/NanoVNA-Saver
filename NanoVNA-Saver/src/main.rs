@@ -9,7 +9,6 @@ mod sweep;
 #[command(name = "nanovna-saver")]
 #[command(about = "Performs NanoVNA sweeps with configurable parameters")]
 struct Args {
-
     #[arg(long, default_value_t = 1, conflicts_with = "time")]
     num_sweeps: usize,
 
@@ -36,7 +35,6 @@ struct Args {
 
     #[arg(long, conflicts_with = "num_sweeps")]
     time: Option<u64>,
-
 }
 
 fn main() {
@@ -49,15 +47,15 @@ fn main() {
     });
 
     let Args {
-    num_sweeps,
-    vna_number,
-    start_freq,
-    end_freq,
-    mut num_points,
-    num_ports,
-    if_bandwidth,
-    time,
-    ..
+        num_sweeps,
+        vna_number,
+        start_freq,
+        end_freq,
+        mut num_points,
+        num_ports,
+        if_bandwidth,
+        time,
+        ..
     } = args;
 
     // Limit num_points to 101 if more are typed
@@ -95,7 +93,7 @@ fn main() {
             num_points,
             num_ports,
             if_bandwidth,
-            time
+            time,
         };
         let handle = thread::spawn(move || sweep::run_on_port(params));
 
