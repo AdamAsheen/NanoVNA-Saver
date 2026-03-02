@@ -16,6 +16,7 @@ pub struct SweepParams {
     pub num_points: usize,
     pub num_ports: usize,
     pub if_bandwidth: Option<u32>,
+    pub time: Option<u64>,
 }
 
 pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Send + Sync>> {
@@ -28,6 +29,7 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
         num_points,
         num_ports,
         if_bandwidth,
+        time,
     } = params;
     println!("[{}] Starting VNA worker", port_name);
 
@@ -91,7 +93,16 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
     let mut real_parts = Vec::new();
     let mut imag_parts = Vec::new();
 
-    for sweep_idx in 0..num_sweeps {
+    let time_limit = time.map(Duration::from_secs);
+    let time_start = Instant::now();
+    let mut sweep_idx = 0;
+    while{
+        if let Some(limit) = time_limit{
+            time_start.elapsed() < limit
+        } else{
+            sweep_idx < num_sweeps
+        }
+    } {
         let sweep_id = Uuid::new_v4();
 
         let time_cmd_sent_s11 = SystemTime::now()
@@ -242,6 +253,7 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                 }
             }
         }
+        sweep_idx += 1
     }
 
     let elapsed = start_time.elapsed().as_secs_f64();
