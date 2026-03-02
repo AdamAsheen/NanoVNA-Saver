@@ -61,12 +61,7 @@ fn main() {
         .into_iter()
         .filter(|p| {
         if let SerialPortType::UsbPort(info) = &p.port_type {
-            info.vid == 0x0483
-                && info.pid == 0x5740
-                && info.product
-                    .as_deref()
-                    .unwrap_or("")
-                    .contains("ChibiOS")
+            info.vid == 0x0483 && info.pid == 0x5740
         } else {
             false
         }
