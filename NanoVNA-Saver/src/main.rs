@@ -1,4 +1,5 @@
 use clap::Parser;
+use tokio_serial::SerialPortType;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::path::PathBuf;
@@ -64,15 +65,33 @@ fn main() {
         num_points = 101;
     }
 
-    let ports = tokio_serial::available_ports().expect("Failed to enumerate serial ports");
 
-    if ports.is_empty() {
-        eprintln!("No VNAs found");
-        return;
+    let ports = tokio_serial::available_ports()
+        .expect("Failed to enumerate serial ports");
+    
+    let filtered_ports: Vec<_> = ports
+        .into_iter()
+        .filter(|p| {
+        if let SerialPortType::UsbPort(info) = &p.port_type {
+            info.vid == 0x0483 && info.pid == 0x5740
+        } else {
+            false
+        }
+    })
+    .collect();
+
+
+    if filtered_ports.is_empty() {
+        eprintln!("No NanoVNA devices detected");
+    return;
     }
 
     // Checks if the serial port is connected
-    let vnas_to_use = ports.into_iter().take(vna_number);
+
+    let vnas_to_use = filtered_ports
+        .into_iter()
+        .take(vna_number);
+
     // Print line for table header
     println!(
         "| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |"
