@@ -4,7 +4,6 @@ use tokio_serial::SerialPortType;
 use std::path::PathBuf;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
->>>>>>> NanoVNA-Saver/src/main.rs
 mod sweep;
 
 #[derive(Parser, Debug)]
