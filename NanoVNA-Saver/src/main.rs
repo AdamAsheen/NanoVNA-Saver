@@ -53,7 +53,7 @@ fn main() {
     let ports = tokio_serial::available_ports()
         .expect("Failed to enumerate serial ports");
     
-    for p in ports{
+    for p in portz{
         println!("{:#?}", p);
     }
     
