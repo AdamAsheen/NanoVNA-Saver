@@ -96,10 +96,10 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
     let time_limit = time.map(Duration::from_secs);
     let time_start = Instant::now();
     let mut sweep_idx = 0;
-    while{
-        if let Some(limit) = time_limit{
+    while {
+        if let Some(limit) = time_limit {
             time_start.elapsed() < limit
-        } else{
+        } else {
             sweep_idx < num_sweeps
         }
     } {
