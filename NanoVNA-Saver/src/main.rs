@@ -54,7 +54,7 @@ fn main() {
         .expect("Failed to enumerate serial ports");
     
     for p in ports{
-        println("{:#?}", p);
+        println!("{:#?}", p);
     }
     
     let filtered_ports: Vec<_> = ports
