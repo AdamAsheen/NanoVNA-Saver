@@ -10,7 +10,7 @@ mod sweep;
 #[command(about = "Performs NanoVNA sweeps with configurable parameters")]
 struct Args {
 
-    #[arg(long, default_value_t = 1)]
+    #[arg(long, default_value_t = 1, conflicts_with = "time")]
     num_sweeps: usize,
 
     #[arg(long, default_value_t = 1)]
@@ -33,6 +33,9 @@ struct Args {
 
     #[arg(long)]
     path: Option<PathBuf>,
+
+    #[arg(long, conflicts_with = "num_sweeps")]
+    time: Option<u64>,
 
 }
 
