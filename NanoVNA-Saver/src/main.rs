@@ -53,10 +53,6 @@ fn main() {
     let ports = tokio_serial::available_ports()
         .expect("Failed to enumerate serial ports");
     
-    for p in &ports{
-        println!("{:#?}", p);
-    }
-    
     let filtered_ports: Vec<_> = ports
         .into_iter()
         .filter(|p| {
