@@ -4,6 +4,7 @@ use uuid::Uuid;
 use polars::frame::DataFrame;
 use polars::series::Series;
 use polars::prelude::NamedFrom;
+use std::error::Error;
 
 #[derive(Clone, Debug)]
 pub struct SweepParams {
@@ -17,7 +18,7 @@ pub struct SweepParams {
     pub if_bandwidth: Option<u32>,
 }
 
-pub fn run_on_port(params: SweepParams) {
+pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Send + Sync>> {
     let SweepParams {
         port_name,
         num_sweeps,
@@ -37,7 +38,7 @@ pub fn run_on_port(params: SweepParams) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("[{}] Failed to open port: {}", port_name, e);
-            return;
+            return Err("Failed to open port".into());
         }
     };
 
@@ -107,7 +108,7 @@ pub fn run_on_port(params: SweepParams) {
                     bytes_read
                 );
 
-            let mut point_index =0usize;
+               let mut point_index =0usize;
 
             for line in sweep_data.lines() {
                 let line = line.trim();
@@ -127,6 +128,16 @@ pub fn run_on_port(params: SweepParams) {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_secs_f64();
+
+                sweep_ids.push(sweep_id.to_string());
+                labels.push(label.clone());
+                vna_numbers.push(vna_number as i32);
+                time_cmd_sent_vec.push(time_cmd_sent_s11);
+                time_received_vec.push(time_reading_received);
+                frequencies.push(freq);
+                channels.push("S11".to_string());
+                real_parts.push(real);
+                imag_parts.push(imag); 
 
                 println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
                     sweep_id, label, vna_number,
@@ -219,8 +230,6 @@ pub fn run_on_port(params: SweepParams) {
         Series::new("imag", imag_parts),
     ]).expect("Failed to create DataFrame");
 
-    println!("{}", df);
-
     println!(
         "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
         port_name,
@@ -228,6 +237,8 @@ pub fn run_on_port(params: SweepParams) {
         total_bytes,
         elapsed
     );
+    
+    Ok(df)
 }
 
 fn clear_shell(port: &mut dyn SerialPort) {
