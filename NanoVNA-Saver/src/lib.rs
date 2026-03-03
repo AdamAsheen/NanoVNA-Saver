@@ -58,4 +58,25 @@ pub fn run(config: RunConfig) -> Result<DataFrame, String> {
 
         handles.push(thread::spawn(move || sweep::run_on_port(params)));
     }
+
+    let mut dataframes = Vec::new();
+
+    for h in handles {
+        let df = h
+            .join()
+            .map_err(|_| "Thread panicked")?
+            .map_err(|_| "Sweep failed")?;
+        dataframes.push(df);
+    }
+
+    let mut iter = dataframes.into_iter();
+    let mut final_df = iter.next().ok_or("No data collected")?;
+
+    for df in iter {
+        final_df
+            .vstack_mut(&df)
+            .map_err(|_| "Failed to stack DataFrames")?;
+    }
+
+    Ok(final_df)
 }
