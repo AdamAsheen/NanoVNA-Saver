@@ -84,7 +84,11 @@ impl eframe::App for NanoVNASaverApp {
                     .inner_margin(egui::Margin::symmetric(8.0, 8.0)),
             )
             .show(ctx, |ui| {
-                ui.label(egui::RichText::new("Terminal").color(egui::Color32::WHITE).strong());
+                ui.label(
+                    egui::RichText::new("Terminal")
+                        .color(egui::Color32::WHITE)
+                        .strong(),
+                );
                 ui.separator();
 
                 egui::ScrollArea::vertical()
@@ -118,7 +122,10 @@ impl eframe::App for NanoVNASaverApp {
                         {
                             self.is_running = false;
                         }
-                    } else if ui.add(egui::Button::new(button_text).fill(button_color)).clicked() {
+                    } else if ui
+                        .add(egui::Button::new(button_text).fill(button_color))
+                        .clicked()
+                    {
                         if validation_errors.is_empty() {
                             self.is_running = true;
                         } else {
