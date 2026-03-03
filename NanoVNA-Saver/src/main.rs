@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::thread;
 use tokio_serial::SerialPortType;
 mod sweep;
+mod gui;
+use gui::NanoVNASaverApp;
 
 #[derive(Parser, Debug)]
 #[command(name = "nanovna-saver")]
@@ -48,6 +50,17 @@ struct Args {
 }
 
 fn main() {
+    let options = eframe::NativeOptions {
+        viewport: eframe::egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]),
+        ..Default::default()
+    };
+    eframe::run_native(
+        "NanoVNA-Saver",
+        options,
+        Box::new(|_cc| Box::new(NanoVNASaverApp::default())),
+    );
+
+
     let args = Args::parse();
 
     let output_path = args.path.unwrap_or_else(|| {
