@@ -40,9 +40,10 @@ impl NanoVNASaverApp {
             .unwrap_or_default();
 
         if let Some(selected) = &self.selected_port
-            && !self.available_ports.iter().any(|port| port == selected) {
-                self.selected_port = None;
-            }
+            && !self.available_ports.iter().any(|port| port == selected)
+        {
+            self.selected_port = None;
+        }
 
         if self.selected_port.is_none() {
             self.selected_port = self.available_ports.first().cloned();
