@@ -39,11 +39,10 @@ impl NanoVNASaverApp {
             .map(|ports| ports.into_iter().map(|p| p.port_name).collect())
             .unwrap_or_default();
 
-        if let Some(selected) = &self.selected_port {
-            if !self.available_ports.iter().any(|port| port == selected) {
+        if let Some(selected) = &self.selected_port
+            && !self.available_ports.iter().any(|port| port == selected) {
                 self.selected_port = None;
             }
-        }
 
         if self.selected_port.is_none() {
             self.selected_port = self.available_ports.first().cloned();
@@ -98,7 +97,11 @@ impl eframe::App for NanoVNASaverApp {
                         )
                         .show_ui(ui, |ui| {
                             for port in &self.available_ports {
-                                ui.selectable_value(&mut self.selected_port, Some(port.clone()), port);
+                                ui.selectable_value(
+                                    &mut self.selected_port,
+                                    Some(port.clone()),
+                                    port,
+                                );
                             }
                         });
 
@@ -153,7 +156,6 @@ impl eframe::App for NanoVNASaverApp {
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(&mut self.num_ports, 1, "1");
                                     ui.selectable_value(&mut self.num_ports, 2, "2");
-                                    
                                 });
                             ui.label("Num Ports");
                         });
