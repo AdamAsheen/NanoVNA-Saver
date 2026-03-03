@@ -92,14 +92,23 @@ impl eframe::App for NanoVNASaverApp {
         // Right side - results
         egui::SidePanel::right("Terminal_panel")
             .exact_width(terminal_width)
+            .frame(
+                egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(12, 12, 12))
+                    .inner_margin(egui::Margin::symmetric(8.0, 8.0)),
+            )
             .show(ctx, |ui| {
-                ui.heading("Terminal");
+                ui.label(egui::RichText::new("Terminal").color(egui::Color32::WHITE).strong());
                 ui.separator();
 
                 egui::ScrollArea::vertical()
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
-                        ui.label(&self.terminal);
+                        ui.label(
+                            egui::RichText::new(&self.terminal)
+                                .monospace()
+                                .color(egui::Color32::WHITE),
+                        );
                     });
             });
 
