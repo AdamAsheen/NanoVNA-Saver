@@ -39,6 +39,12 @@ struct Args {
 
     #[arg(long)]
     label: Option<String>,
+
+    #[arg(long)]
+    no_save: bool,
+
+    #[arg(long)]
+    no_print: bool,
 }
 
 fn main() {
@@ -61,6 +67,8 @@ fn main() {
         num_ports,
         if_bandwidth,
         time,
+        no_save,
+        no_print,
         ..
     } = args;
 
@@ -93,9 +101,11 @@ fn main() {
     let vnas_to_use = filtered_ports.into_iter().take(vna_number);
 
     // Print line for table header
-    println!(
-        "| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |"
-    );
+    if !no_print {
+        println!(
+            "| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |"
+        );
+    }
 
     let mut handles = Vec::new();
 
@@ -114,6 +124,7 @@ fn main() {
             if_bandwidth,
             time,
             label: label.clone(),
+            no_print,
         };
         let handle = thread::spawn(move || sweep::run_on_port(params));
 
@@ -136,12 +147,14 @@ fn main() {
             .expect("Failed to stack DataFrames");
     }
 
-    let mut file = File::create(&output_path).expect("Failed to create CSV file");
+    if !no_save {
+        let mut file = File::create(&output_path).expect("Failed to create CSV file");
 
-    CsvWriter::new(&mut file)
-        .include_header(true)
-        .finish(&mut final_df)
-        .expect("Failed to write CSV");
+        CsvWriter::new(&mut file)
+            .include_header(true)
+            .finish(&mut final_df)
+            .expect("Failed to write CSV");
 
-    println!("Saved CSV to {:?}", output_path);
+        println!("Saved CSV to {:?}", output_path);
+    }
 }

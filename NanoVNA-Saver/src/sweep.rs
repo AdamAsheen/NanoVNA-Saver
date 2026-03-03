@@ -18,6 +18,7 @@ pub struct SweepParams {
     pub if_bandwidth: Option<u32>,
     pub time: Option<u64>,
     pub label: String,
+    pub no_print: bool,
 }
 
 pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Send + Sync>> {
@@ -32,6 +33,7 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
         if_bandwidth,
         time,
         label,
+        no_print,
     } = params;
     println!("[{}] Starting VNA worker", port_name);
 
@@ -115,12 +117,14 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
             Ok((bytes_read, sweep_data)) => {
                 total_bytes += bytes_read;
 
-                println!(
-                    "[{}] Sweep {} complete ({} bytes)",
-                    port_name,
-                    sweep_idx + 1,
-                    bytes_read
-                );
+                if !no_print {
+                    println!(
+                        "[{}] Sweep {} complete ({} bytes)",
+                        port_name,
+                        sweep_idx + 1,
+                        bytes_read
+                    );
+                }
 
                 let mut point_index = 0usize;
 
@@ -165,17 +169,19 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                     real_parts.push(real);
                     imag_parts.push(imag);
 
-                    println!(
-                        "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
-                        sweep_id,
-                        label,
-                        vna_number,
-                        time_cmd_sent_s11,
-                        time_reading_received,
-                        freq,
-                        real,
-                        imag
-                    );
+                    if !no_print {
+                        println!(
+                            "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
+                            sweep_id,
+                            label,
+                            vna_number,
+                            time_cmd_sent_s11,
+                            time_reading_received,
+                            freq,
+                            real,
+                            imag
+                        );
+                    }
 
                     point_index += 1;
                     if point_index >= num_points {
@@ -242,18 +248,19 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                         real_parts.push(real);
                         imag_parts.push(imag);
 
-                        println!(
-                            "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
-                            sweep_id,
-                            label,
-                            vna_number,
-                            time_cmd_sent_s21,
-                            time_received,
-                            freq,
-                            real,
-                            imag
-                        );
-
+                        if !no_print {
+                            println!(
+                                "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
+                                sweep_id,
+                                label,
+                                vna_number,
+                                time_cmd_sent_s21,
+                                time_received,
+                                freq,
+                                real,
+                                imag
+                            );
+                        }
                         point_index += 1;
                         if point_index >= num_points {
                             break;
