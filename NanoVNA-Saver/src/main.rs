@@ -36,6 +36,9 @@ struct Args {
 
     #[arg(long, conflicts_with = "num_sweeps")]
     time: Option<u64>,
+
+    #[arg(long)]
+    label: Option<String>,
 }
 
 fn main() {
@@ -46,6 +49,8 @@ fn main() {
             .expect("Failed to get current working directory")
             .join("output.csv")
     });
+
+    let label = args.label.unwrap_or_else(|| "default_label".to_string());
 
     let Args {
         num_sweeps,
@@ -108,6 +113,7 @@ fn main() {
             num_ports,
             if_bandwidth,
             time,
+            label: label.clone(),
         };
         let handle = thread::spawn(move || sweep::run_on_port(params));
 

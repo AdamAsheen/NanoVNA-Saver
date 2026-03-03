@@ -17,6 +17,7 @@ pub struct SweepParams {
     pub num_ports: usize,
     pub if_bandwidth: Option<u32>,
     pub time: Option<u64>,
+    pub label: String,
 }
 
 pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Send + Sync>> {
@@ -30,6 +31,7 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
         num_ports,
         if_bandwidth,
         time,
+        label,
     } = params;
     println!("[{}] Starting VNA worker", port_name);
 
@@ -46,7 +48,6 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
     clear_shell(&mut *port);
 
     // Seperation of titles and headers
-    let label = "default_label".to_string();
     let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
 
     // Allow IF bandwidth to be chosen from terminal instead of the shell
@@ -241,12 +242,17 @@ pub fn run_on_port(params: SweepParams) -> Result<DataFrame, Box<dyn Error + Sen
                         real_parts.push(real);
                         imag_parts.push(imag);
 
-                    println!("| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
-                    sweep_id, label, vna_number,
-                    time_cmd_sent_s21, time_received,
-                    freq, real, imag
-                );
-
+                        println!(
+                            "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S21 | {} | {} |",
+                            sweep_id,
+                            label,
+                            vna_number,
+                            time_cmd_sent_s21,
+                            time_received,
+                            freq,
+                            real,
+                            imag
+                        );
 
                         point_index += 1;
                         if point_index >= num_points {
