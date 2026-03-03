@@ -4,8 +4,8 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::thread;
 use tokio_serial::SerialPortType;
-mod sweep;
 mod gui;
+mod sweep;
 use gui::NanoVNASaverApp;
 
 #[derive(Parser, Debug)]
@@ -54,12 +54,11 @@ fn main() {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]),
         ..Default::default()
     };
-    eframe::run_native(
+    let _ = eframe::run_native(
         "NanoVNA-Saver",
         options,
         Box::new(|_cc| Box::new(NanoVNASaverApp::default())),
     );
-
 
     let args = Args::parse();
 
