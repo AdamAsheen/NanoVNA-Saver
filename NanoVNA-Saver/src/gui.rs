@@ -8,6 +8,7 @@ pub struct NanoVNASaverApp {
     start_freq: String,
     end_freq: String,
     num_points: String,
+    num_ports: usize,
 }
 
 impl Default for NanoVNASaverApp {
@@ -19,6 +20,7 @@ impl Default for NanoVNASaverApp {
             start_freq: "50000".to_string(),
             end_freq: "900000000".to_string(),
             num_points: "101".to_string(),
+            num_ports: 2,
         };
         app.refresh_ports();
         app
@@ -128,6 +130,17 @@ impl eframe::App for NanoVNASaverApp {
                                     .desired_width(80.0),
                             );
                             ui.label("Points");
+
+                            ui.add_space(4.0);
+
+                            egui::ComboBox::from_label("")
+                                .selected_text(self.num_ports.to_string())
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(&mut self.num_ports, 1, "1");
+                                    ui.selectable_value(&mut self.num_ports, 2, "2");
+                                    
+                                });
+                            ui.label("Num Ports");
                         });
                     });
                 });
