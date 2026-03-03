@@ -10,6 +10,8 @@ pub struct NanoVNASaverApp {
     num_points: String,
     num_ports: usize,
     label: String,
+    if_bandwidth: String,
+    is_running: bool,
 }
 
 impl Default for NanoVNASaverApp {
@@ -23,6 +25,8 @@ impl Default for NanoVNASaverApp {
             num_points: "101".to_string(),
             num_ports: 2,
             label: String::new(),
+            if_bandwidth: String::new(),
+            is_running: false,
         };
         app.refresh_ports();
         app
@@ -69,7 +73,16 @@ impl eframe::App for NanoVNASaverApp {
 
         // Left side - main content
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("NanoVNA-Saver");
+            ui.horizontal(|ui| {
+                ui.heading("NanoVNA-Saver");
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let button_text = if self.is_running { "Stop" } else { "Start" };
+                    if ui.button(button_text).clicked() {
+                        self.is_running = !self.is_running;
+                    }
+                });
+            });
             ui.separator();
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
@@ -151,13 +164,20 @@ impl eframe::App for NanoVNASaverApp {
 
                 // Label field
                 ui.group(|ui| {
-                    ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
                         ui.add(
                             egui::TextEdit::singleline(&mut self.label)
                                 .hint_text("Label")
                                 .desired_width(150.0),
                         );
 
+                        ui.add_space(4.0);
+
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.if_bandwidth)
+                                .hint_text("IF Bandwidth")
+                                .desired_width(150.0),
+                        );
                     });
                 });
             });
