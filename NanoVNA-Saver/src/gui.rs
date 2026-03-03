@@ -12,6 +12,7 @@ pub struct NanoVNASaverApp {
     label: String,
     if_bandwidth: u32,
     time: u64,
+    num_sweeps: usize,
     is_running: bool,
 }
 
@@ -28,6 +29,7 @@ impl Default for NanoVNASaverApp {
             label: String::new(),
             if_bandwidth: 0,
             time: 0,
+            num_sweeps: 1,
             is_running: false,
         };
         app.refresh_ports();
@@ -61,6 +63,12 @@ impl NanoVNASaverApp {
 
         if self.num_points > 101 {
             errors.push("Points must be 101 or less".to_string());
+        }
+
+        if (self.time == 0 && self.num_sweeps == 0) || (self.time > 0 && self.num_sweeps > 0) {
+            errors.push(
+                "Either Time or Num Sweeps must be set, but not both".to_string(),
+            );
         }
 
         errors
@@ -249,14 +257,24 @@ impl eframe::App for NanoVNASaverApp {
 
                 // Time field
                 ui.group(|ui| {
-                    ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
                         ui.add_sized(
-                            [70.0, 0.0],
-                            egui::DragValue::new(&mut self.time)
-                                .clamp_range(0..=u64::MAX)
-                                .speed(1.0),
-                        );
-                        ui.label("s");
+                                [80.0, 0.0],
+                                egui::DragValue::new(&mut self.num_sweeps)
+                                    .clamp_range(0..=2147483647)//max for i32 since that's what the NanoVNA accepts
+                                    .speed(1.0),
+                                   
+                            );
+                        ui.label("Num Sweeps");
+                        ui.add_space(4.0);
+
+                        ui.add_sized(
+                                [80.0, 0.0],
+                                egui::DragValue::new(&mut self.time)
+                                    .clamp_range(0..=2147483647)
+                                    .speed(1.0),
+                            );
+                        ui.label("Time (s)");
                     });
                 });
             });
