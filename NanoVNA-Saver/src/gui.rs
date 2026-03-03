@@ -66,9 +66,7 @@ impl NanoVNASaverApp {
         }
 
         if (self.time == 0 && self.num_sweeps == 0) || (self.time > 0 && self.num_sweeps > 0) {
-            errors.push(
-                "Either Time or Num Sweeps must be set, but not both".to_string(),
-            );
+            errors.push("Either Time or Num Sweeps must be set, but not both".to_string());
         }
 
         errors
@@ -249,9 +247,8 @@ impl eframe::App for NanoVNASaverApp {
                             egui::DragValue::new(&mut self.if_bandwidth)
                                 .clamp_range(0..=u32::MAX)
                                 .speed(1.0),
-                            
                         );
-                    ui.label("IF Bandwidth (Hz)");
+                        ui.label("IF Bandwidth (Hz)");
                     });
                 });
 
@@ -261,21 +258,20 @@ impl eframe::App for NanoVNASaverApp {
                 ui.group(|ui| {
                     ui.vertical(|ui| {
                         ui.add_sized(
-                                [80.0, 0.0],
-                                egui::DragValue::new(&mut self.num_sweeps)
-                                    .clamp_range(0..=2147483647)//max for i32 since that's what the NanoVNA accepts
-                                    .speed(1.0),
-                                   
-                            );
+                            [80.0, 0.0],
+                            egui::DragValue::new(&mut self.num_sweeps)
+                                .clamp_range(0..=2147483647) //max for i32 since that's what the NanoVNA accepts
+                                .speed(1.0),
+                        );
                         ui.label("Num Sweeps");
                         ui.add_space(4.0);
 
                         ui.add_sized(
-                                [80.0, 0.0],
-                                egui::DragValue::new(&mut self.time)
-                                    .clamp_range(0..=2147483647)
-                                    .speed(1.0),
-                            );
+                            [80.0, 0.0],
+                            egui::DragValue::new(&mut self.time)
+                                .clamp_range(0..=2147483647)
+                                .speed(1.0),
+                        );
                         ui.label("Time (s)");
                     });
                 });
