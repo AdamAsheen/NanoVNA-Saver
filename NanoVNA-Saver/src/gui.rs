@@ -5,13 +5,13 @@ pub struct NanoVNASaverApp {
     terminal: String,
     available_ports: Vec<String>,
     selected_port: Option<String>,
-    start_freq: String,
-    end_freq: String,
-    num_points: String,
+    start_freq: u64,
+    end_freq: u64,
+    num_points: usize,
     num_ports: usize,
     label: String,
-    if_bandwidth: String,
-    time: String,
+    if_bandwidth: u32,
+    time: u64,
     is_running: bool,
 }
 
@@ -21,13 +21,13 @@ impl Default for NanoVNASaverApp {
             terminal: String::new(),
             available_ports: Vec::new(),
             selected_port: None,
-            start_freq: "50000".to_string(),
-            end_freq: "900000000".to_string(),
-            num_points: "101".to_string(),
+            start_freq: 50_000,
+            end_freq: 900_000_000,
+            num_points: 101,
             num_ports: 2,
             label: String::new(),
-            if_bandwidth: String::new(),
-            time: String::new(),
+            if_bandwidth: 0,
+            time: 0,
             is_running: false,
         };
         app.refresh_ports();
@@ -55,26 +55,12 @@ impl NanoVNASaverApp {
     fn validation_messages(&self) -> Vec<String> {
         let mut errors = Vec::new();
 
-        let start_freq = self.start_freq.trim().parse::<u64>();
-        let end_freq = self.end_freq.trim().parse::<u64>();
-        let points = self.num_points.trim().parse::<usize>();
-
-        match (start_freq, end_freq) {
-            (Ok(start), Ok(end)) => {
-                if start >= end {
-                    errors.push("Start frequency must be less than End frequency".to_string());
-                }
-            }
-            _ => errors.push("Start and End frequency must be valid numbers".to_string()),
+        if self.start_freq >= self.end_freq {
+            errors.push("Start frequency must be less than End frequency".to_string());
         }
 
-        match points {
-            Ok(value) => {
-                if value > 101 {
-                    errors.push("Points must be 101 or less".to_string());
-                }
-            }
-            Err(_) => errors.push("Points must be a valid whole number".to_string()),
+        if self.num_points > 101 {
+            errors.push("Points must be 101 or less".to_string());
         }
 
         errors
@@ -186,19 +172,21 @@ impl eframe::App for NanoVNASaverApp {
                     ui.horizontal(|ui| {
                         // Start and End (vertical)
                         ui.vertical(|ui| {
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.start_freq)
-                                    .hint_text("Start Freq (Hz)")
-                                    .desired_width(120.0),
+                            ui.add_sized(
+                                [120.0, 0.0],
+                                egui::DragValue::new(&mut self.start_freq)
+                                    .clamp_range(0..=u64::MAX)
+                                    .speed(1.0),
                             );
                             ui.label("Start Freq (Hz)");
 
                             ui.add_space(4.0);
 
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.end_freq)
-                                    .hint_text("End Freq (Hz)")
-                                    .desired_width(120.0),
+                            ui.add_sized(
+                                [120.0, 0.0],
+                                egui::DragValue::new(&mut self.end_freq)
+                                    .clamp_range(0..=u64::MAX)
+                                    .speed(1.0),
                             );
                             ui.label("End Freq (Hz)");
                         });
@@ -207,10 +195,11 @@ impl eframe::App for NanoVNASaverApp {
 
                         // Points (to the right)
                         ui.vertical(|ui| {
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.num_points)
-                                    .hint_text("Points")
-                                    .desired_width(80.0),
+                            ui.add_sized(
+                                [80.0, 0.0],
+                                egui::DragValue::new(&mut self.num_points)
+                                    .clamp_range(0..=101)
+                                    .speed(1.0),
                             );
                             ui.label("Points");
 
@@ -240,10 +229,11 @@ impl eframe::App for NanoVNASaverApp {
 
                         ui.add_space(4.0);
 
-                        ui.add(
-                            egui::TextEdit::singleline(&mut self.if_bandwidth)
-                                .hint_text("IF Bandwidth")
-                                .desired_width(150.0),
+                        ui.add_sized(
+                            [150.0, 0.0],
+                            egui::DragValue::new(&mut self.if_bandwidth)
+                                .clamp_range(0..=u32::MAX)
+                                .speed(1.0),
                         );
                     });
                 });
@@ -253,10 +243,11 @@ impl eframe::App for NanoVNASaverApp {
                 // Time field
                 ui.group(|ui| {
                     ui.horizontal(|ui| {
-                        ui.add(
-                            egui::TextEdit::singleline(&mut self.time)
-                                .hint_text("Time")
-                                .desired_width(70.0),
+                        ui.add_sized(
+                            [70.0, 0.0],
+                            egui::DragValue::new(&mut self.time)
+                                .clamp_range(0..=u64::MAX)
+                                .speed(1.0),
                         );
                         ui.label("s");
                     });
