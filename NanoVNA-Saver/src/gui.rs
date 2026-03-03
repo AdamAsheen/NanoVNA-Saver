@@ -5,6 +5,9 @@ pub struct NanoVNASaverApp {
     terminal: String,
     available_ports: Vec<String>,
     selected_port: Option<String>,
+    start_freq: String,
+    end_freq: String,
+    num_points: String,
 }
 
 impl Default for NanoVNASaverApp {
@@ -13,6 +16,9 @@ impl Default for NanoVNASaverApp {
             terminal: String::new(),
             available_ports: Vec::new(),
             selected_port: None,
+            start_freq: "50000".to_string(),
+            end_freq: "900000000".to_string(),
+            num_points: "101".to_string(),
         };
         app.refresh_ports();
         app
@@ -62,26 +68,69 @@ impl eframe::App for NanoVNASaverApp {
             ui.heading("NanoVNA-Saver");
             ui.separator();
 
-            ui.group(|ui| {
-                ui.set_width(120.0);
-                ui.heading("Serial Port");
-                ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                // Serial Port Configuration
+                ui.group(|ui| {
+                    ui.set_width(180.0);
 
-                egui::ComboBox::from_label("")
-                    .selected_text(
-                        self.selected_port
-                            .as_deref()
-                            .unwrap_or("No COM ports found"),
-                    )
-                    .show_ui(ui, |ui| {
-                        for port in &self.available_ports {
-                            ui.selectable_value(&mut self.selected_port, Some(port.clone()), port);
-                        }
+                    egui::ComboBox::from_label("")
+                        .selected_text(
+                            self.selected_port
+                                .as_deref()
+                                .unwrap_or("No COM ports found"),
+                        )
+                        .show_ui(ui, |ui| {
+                            for port in &self.available_ports {
+                                ui.selectable_value(&mut self.selected_port, Some(port.clone()), port);
+                            }
+                        });
+
+                    ui.add_space(4.0);
+                    let detection_status = if self.available_ports.is_empty() {
+                        "NanoVNA not detected"
+                    } else {
+                        "NanoVNA detected"
+                    };
+                    ui.label(detection_status);
+                });
+
+                ui.add_space(8.0);
+
+                // Sweep Configuration Panel
+                ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        // Start and End (vertical)
+                        ui.vertical(|ui| {
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.start_freq)
+                                    .hint_text("Start Freq (Hz)")
+                                    .desired_width(120.0),
+                            );
+                            ui.label("Start Freq (Hz)");
+
+                            ui.add_space(4.0);
+
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.end_freq)
+                                    .hint_text("End Freq (Hz)")
+                                    .desired_width(120.0),
+                            );
+                            ui.label("End Freq (Hz)");
+                        });
+
+                        ui.add_space(8.0);
+
+                        // Points (to the right)
+                        ui.vertical(|ui| {
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.num_points)
+                                    .hint_text("Points")
+                                    .desired_width(80.0),
+                            );
+                            ui.label("Points");
+                        });
                     });
-
-                if ui.button("Refresh Ports").clicked() {
-                    self.refresh_ports();
-                }
+                });
             });
 
             ui.add_space(8.0);
