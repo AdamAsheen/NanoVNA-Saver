@@ -39,6 +39,9 @@ struct Args {
 
     #[arg(long)]
     label: Option<String>,
+
+    #[arg(long)]
+    no_save: bool,
 }
 
 fn main() {
@@ -61,6 +64,7 @@ fn main() {
         num_ports,
         if_bandwidth,
         time,
+        no_save,
         ..
     } = args;
 
@@ -135,7 +139,8 @@ fn main() {
             .vstack_mut(&df)
             .expect("Failed to stack DataFrames");
     }
-
+    
+    if !no_save{
     let mut file = File::create(&output_path).expect("Failed to create CSV file");
 
     CsvWriter::new(&mut file)
@@ -144,4 +149,5 @@ fn main() {
         .expect("Failed to write CSV");
 
     println!("Saved CSV to {:?}", output_path);
+}
 }
