@@ -38,4 +38,24 @@ pub fn run(config: RunConfig) -> Result<DataFrame, String> {
     }
 
     let vnas_to_use = filtered_ports.into_iter().take(config.vna_number);
+
+    let mut handles = Vec::new();
+
+    for (idx, port) in vnas_to_use.enumerate() {
+        let params = SweepParams {
+            port_name: port.port_name.clone(),
+            num_sweeps: config.num_sweeps,
+            vna_number: idx + 1,
+            start_freq: config.start_freq,
+            end_freq: config.end_freq,
+            num_points: config.num_points,
+            num_ports: config.num_ports,
+            if_bandwidth: config.if_bandwidth,
+            time: config.time,
+            label: config.label.clone(),
+            no_print: config.no_print,
+        };
+
+        handles.push(thread::spawn(move || sweep::run_on_port(params)));
+    }
 }
