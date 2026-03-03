@@ -11,6 +11,7 @@ pub struct NanoVNASaverApp {
     num_ports: usize,
     label: String,
     if_bandwidth: String,
+    time: String,
     is_running: bool,
 }
 
@@ -26,6 +27,7 @@ impl Default for NanoVNASaverApp {
             num_ports: 2,
             label: String::new(),
             if_bandwidth: String::new(),
+            time: String::new(),
             is_running: false,
         };
         app.refresh_ports();
@@ -78,7 +80,16 @@ impl eframe::App for NanoVNASaverApp {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let button_text = if self.is_running { "Stop" } else { "Start" };
-                    if ui.button(button_text).clicked() {
+                    let button_color = if self.is_running {
+                        egui::Color32::from_rgb(200, 40, 40)
+                    } else {
+                        egui::Color32::from_rgb(40, 160, 40)
+                    };
+
+                    if ui
+                        .add(egui::Button::new(button_text).fill(button_color))
+                        .clicked()
+                    {
                         self.is_running = !self.is_running;
                     }
                 });
@@ -181,6 +192,20 @@ impl eframe::App for NanoVNASaverApp {
                                 .hint_text("IF Bandwidth")
                                 .desired_width(150.0),
                         );
+                    });
+                });
+
+                ui.add_space(8.0);
+
+                // Time field
+                ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.time)
+                                .hint_text("Time")
+                                .desired_width(70.0),
+                        );
+                        ui.label("s");
                     });
                 });
             });
