@@ -9,6 +9,7 @@ pub struct NanoVNASaverApp {
     end_freq: String,
     num_points: String,
     num_ports: usize,
+    label: String,
 }
 
 impl Default for NanoVNASaverApp {
@@ -21,6 +22,7 @@ impl Default for NanoVNASaverApp {
             end_freq: "900000000".to_string(),
             num_points: "101".to_string(),
             num_ports: 2,
+            label: String::new(),
         };
         app.refresh_ports();
         app
@@ -70,7 +72,7 @@ impl eframe::App for NanoVNASaverApp {
             ui.heading("NanoVNA-Saver");
             ui.separator();
 
-            ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                 // Serial Port Configuration
                 ui.group(|ui| {
                     ui.set_width(180.0);
@@ -142,6 +144,20 @@ impl eframe::App for NanoVNASaverApp {
                                 });
                             ui.label("Num Ports");
                         });
+                    });
+                });
+
+                ui.add_space(8.0);
+
+                // Label field
+                ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.label)
+                                .hint_text("Label")
+                                .desired_width(150.0),
+                        );
+
                     });
                 });
             });
