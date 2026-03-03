@@ -18,3 +18,24 @@ pub struct RunConfig {
     pub label: String,
     pub no_print: bool,
 }
+
+pub fn run(config: RunConfig) -> Result<DataFrame, String> {
+    let ports = tokio_serial::available_ports().map_err(|_| "Failed to enumerate serial ports")?;
+
+    let filtered_ports: Vec<_> = ports
+        .into_iter()
+        .filter(|p| {
+            if let SerialPortType::UsbPort(info) = &p.port_type {
+                info.vid == 0x0483 && info.pid == 0x5740
+            } else {
+                false
+            }
+        })
+        .collect();
+
+    if filtered_ports.is_empty() {
+        return Err("No NanoVNA devices detected".into());
+    }
+
+    let vnas_to_use = filtered_ports.into_iter().take(config.vna_number);
+}
