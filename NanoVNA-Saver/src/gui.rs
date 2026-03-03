@@ -51,10 +51,40 @@ impl NanoVNASaverApp {
             self.selected_port = self.available_ports.first().cloned();
         }
     }
+
+    fn validation_messages(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        let start_freq = self.start_freq.trim().parse::<u64>();
+        let end_freq = self.end_freq.trim().parse::<u64>();
+        let points = self.num_points.trim().parse::<usize>();
+
+        match (start_freq, end_freq) {
+            (Ok(start), Ok(end)) => {
+                if start >= end {
+                    errors.push("Start frequency must be less than End frequency".to_string());
+                }
+            }
+            _ => errors.push("Start and End frequency must be valid numbers".to_string()),
+        }
+
+        match points {
+            Ok(value) => {
+                if value > 101 {
+                    errors.push("Points must be 101 or less".to_string());
+                }
+            }
+            Err(_) => errors.push("Points must be a valid whole number".to_string()),
+        }
+
+        errors
+    }
 }
 
 impl eframe::App for NanoVNASaverApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let validation_errors = self.validation_messages();
+
         // Calculate 1/3 of window width for results
         let window_width = ctx.screen_rect().width();
         let terminal_width = window_width / 3.0;
@@ -86,11 +116,25 @@ impl eframe::App for NanoVNASaverApp {
                         egui::Color32::from_rgb(40, 160, 40)
                     };
 
-                    if ui
-                        .add(egui::Button::new(button_text).fill(button_color))
-                        .clicked()
-                    {
-                        self.is_running = !self.is_running;
+                    if self.is_running {
+                        if ui
+                            .add(egui::Button::new(button_text).fill(button_color))
+                            .clicked()
+                        {
+                            self.is_running = false;
+                        }
+                    } else if ui.add(egui::Button::new(button_text).fill(button_color)).clicked() {
+                        if validation_errors.is_empty() {
+                            self.is_running = true;
+                        } else {
+                            for error in &validation_errors {
+                                if !self.terminal.is_empty() {
+                                    self.terminal.push('\n');
+                                }
+                                self.terminal.push_str("Error: ");
+                                self.terminal.push_str(error);
+                            }
+                        }
                     }
                 });
             });
