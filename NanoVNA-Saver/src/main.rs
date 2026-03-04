@@ -92,6 +92,14 @@ fn main() {
 
     let mut final_df = result.dataframe;
 
+    let sweeps_completed = final_df
+        .column("sweep_id")
+        .expect("missing sweep_id column")
+        .n_unique()
+        .expect("failed to count sweeps");
+
+    println!("Completed {} sweeps.", sweeps_completed);
+
     println!("Total bytes read: {}", result.total_bytes);
     println!("Elapsed time: {:.2} s", result.elapsed_seconds);
 
