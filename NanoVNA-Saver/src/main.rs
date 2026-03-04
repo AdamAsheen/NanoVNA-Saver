@@ -2,15 +2,12 @@ use clap::Parser;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::path::PathBuf;
-use std::thread;
-use tokio_serial::SerialPortType;
 mod gui;
-mod sweep;
 use gui::NanoVNASaverApp;
+use nanovna_saver::{RunConfig, run};
 
 #[derive(Parser, Debug)]
 #[command(name = "nanovna-saver")]
-#[command(about = "Performs NanoVNA sweeps with configurable parameters")]
 struct Args {
     #[arg(short = 's', long, default_value_t = 1, conflicts_with = "time")]
     num_sweeps: usize,
@@ -49,6 +46,10 @@ struct Args {
     no_print: bool,
 }
 
+fn print_row(row: &str) {
+    println!("{}", row);
+}
+
 fn main() {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([1900.0, 1000.0]),
@@ -70,96 +71,50 @@ fn main() {
 
     let label = args.label.unwrap_or_else(|| "default_label".to_string());
 
-    let Args {
-        num_sweeps,
-        vna_number,
-        start_freq,
-        end_freq,
-        mut num_points,
-        num_ports,
-        if_bandwidth,
-        time,
-        no_save,
-        no_print,
-        ..
-    } = args;
-
-    // Limit num_points to 101 if more are typed
-    if num_points > 101 {
-        println!("num_points limited to 101 (was {})", num_points);
-        num_points = 101;
-    }
-
-    let ports = tokio_serial::available_ports().expect("Failed to enumerate serial ports");
-
-    let filtered_ports: Vec<_> = ports
-        .into_iter()
-        .filter(|p| {
-            if let SerialPortType::UsbPort(info) = &p.port_type {
-                info.vid == 0x0483 && info.pid == 0x5740
-            } else {
-                false
-            }
-        })
-        .collect();
-
-    if filtered_ports.is_empty() {
-        eprintln!("No NanoVNA devices detected");
-        return;
-    }
-
-    // Checks if the serial port is connected
-
-    let vnas_to_use = filtered_ports.into_iter().take(vna_number);
-
-    // Print line for table header
-    if !no_print {
-        println!(
-            "| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |"
+    let num_points = if args.num_points > 101 {
+        eprintln!(
+            "Requested {} points, but NanoVNA supports a maximum of 101. Defaulting  to 101.",
+            args.num_points
         );
-    }
+        101
+    } else {
+        args.num_points
+    };
+    let config = RunConfig {
+        num_sweeps: args.num_sweeps,
+        vna_number: args.vna_number,
+        start_freq: args.start_freq,
+        end_freq: args.end_freq,
+        num_points,
+        num_ports: args.num_ports,
+        if_bandwidth: args.if_bandwidth,
+        time: args.time,
+        label,
+        row_callback: if args.no_print { None } else { Some(print_row) },
+    };
 
-    let mut handles = Vec::new();
+    let result = match run(config) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
 
-    for (idx, port) in vnas_to_use.enumerate() {
-        let port_name = port.port_name.clone();
-        let vna_number = idx + 1;
+    let mut final_df = result.dataframe;
 
-        let params = sweep::SweepParams {
-            port_name,
-            num_sweeps,
-            vna_number,
-            start_freq,
-            end_freq,
-            num_points,
-            num_ports,
-            if_bandwidth,
-            time,
-            label: label.clone(),
-            no_print,
-        };
-        let handle = thread::spawn(move || sweep::run_on_port(params));
+    let sweeps_completed = final_df
+        .column("sweep_id")
+        .expect("missing sweep_id column")
+        .n_unique()
+        .expect("failed to count sweeps");
 
-        handles.push(handle);
-    }
+    println!("Completed {} sweeps.", sweeps_completed);
 
-    let mut dataframes = Vec::new();
+    println!("Total bytes read: {}", result.total_bytes);
+    println!("Elapsed time: {:.2} s", result.elapsed_seconds);
 
-    for h in handles {
-        let df = h.join().expect("Thread panicked").expect("Sweep failed");
-        dataframes.push(df);
-    }
-
-    let mut iter = dataframes.into_iter();
-    let mut final_df = iter.next().expect("No data collected");
-
-    for df in iter {
-        final_df
-            .vstack_mut(&df)
-            .expect("Failed to stack DataFrames");
-    }
-
-    if !no_save {
+    if !args.no_save {
         let mut file = File::create(&output_path).expect("Failed to create CSV file");
 
         CsvWriter::new(&mut file)
