@@ -4,7 +4,7 @@ use tokio_serial::SerialPortType;
 
 pub mod sweep;
 
-use sweep::SweepParams;
+use sweep::{SweepParams, SweepResult};
 
 pub struct RunConfig {
     pub num_sweeps: usize,
@@ -18,7 +18,7 @@ pub struct RunConfig {
     pub label: String,
 }
 
-pub fn run(config: RunConfig) -> Result<DataFrame, String> {
+pub fn run(config: RunConfig) -> Result<SweepResult, String> {
     let ports = tokio_serial::available_ports().map_err(|_| "Failed to enumerate serial ports")?;
 
     let filtered_ports: Vec<_> = ports
@@ -56,15 +56,15 @@ pub fn run(config: RunConfig) -> Result<DataFrame, String> {
 
         handles.push(thread::spawn(move || sweep::run_on_port(params)));
     }
-
     let mut dataframes = Vec::new();
 
     for h in handles {
-        let df = h
+        let result = h
             .join()
             .map_err(|_| "Thread panicked")?
             .map_err(|_| "Sweep failed")?;
-        dataframes.push(df);
+
+        dataframes.push(result.dataframe);
     }
 
     let mut iter = dataframes.into_iter();
