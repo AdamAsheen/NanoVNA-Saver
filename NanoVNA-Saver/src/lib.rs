@@ -15,6 +15,7 @@ pub struct RunConfig {
     pub if_bandwidth: Option<u32>,
     pub time: Option<u64>,
     pub label: String,
+    pub row_callback: Option<fn(&str)>,
 }
 
 pub fn run(config: RunConfig) -> Result<SweepResult, String> {
@@ -51,6 +52,7 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
             if_bandwidth: config.if_bandwidth,
             time: config.time,
             label: config.label.clone(),
+            row_callback: config.row_callback,
         };
 
         handles.push(thread::spawn(move || sweep::run_on_port(params)));
