@@ -3,7 +3,7 @@ use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::path::PathBuf;
 
-use nanovna_saver::{run, RunConfig};
+use nanovna_saver::{RunConfig, run};
 
 #[derive(Parser, Debug)]
 #[command(name = "nanovna-saver")]
@@ -71,17 +71,21 @@ fn main() {
         no_print: args.no_print,
     };
 
-    let mut final_df = match run(config) {
-        Ok(df) => df,
+    let result = match run(config) {
+        Ok(r) => r,
         Err(e) => {
             eprintln!("{e}");
             return;
         }
     };
 
+    let mut final_df = result.dataframe;
+
+    println!("Total bytes read: {}", result.total_bytes);
+    println!("Elapsed time: {:.2} s", result.elapsed_seconds);
+
     if !args.no_save {
-        let mut file = File::create(&output_path)
-            .expect("Failed to create CSV file");
+        let mut file = File::create(&output_path).expect("Failed to create CSV file");
 
         CsvWriter::new(&mut file)
             .include_header(true)
@@ -90,4 +94,4 @@ fn main() {
 
         println!("Saved CSV to {:?}", output_path);
     }
-}    
+}
