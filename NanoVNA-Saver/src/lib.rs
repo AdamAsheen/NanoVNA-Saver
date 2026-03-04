@@ -41,6 +41,8 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
     let mut handles = Vec::new();
 
     for (idx, port) in vnas_to_use.enumerate() {
+        println!("Connected to NanoVNA {} on {}", idx + 1, port.port_name);
+
         let params = SweepParams {
             port_name: port.port_name.clone(),
             num_sweeps: config.num_sweeps,
