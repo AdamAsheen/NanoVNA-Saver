@@ -3,7 +3,6 @@ use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::path::PathBuf;
 mod gui;
-mod sweep;
 use gui::NanoVNASaverApp;
 use nanovna_saver::{RunConfig, run};
 
