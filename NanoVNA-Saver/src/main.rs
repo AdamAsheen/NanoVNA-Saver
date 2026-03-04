@@ -60,8 +60,16 @@ fn main() {
 
     let label = args.label.unwrap_or_else(|| "default_label".to_string());
 
-    let num_points = args.num_points.min(101);
+    let num_points = if args.num_points > 101 {
+        eprintln!(
+            "Requested {} points, but NanoVNA supports a maximum of 101. Defaulting  to 101.",
+            args.num_points
+        );
+        101
+    } else {
+        args.num_points
 
+    };
     let config = RunConfig {
         num_sweeps: args.num_sweeps,
         vna_number: args.vna_number,
