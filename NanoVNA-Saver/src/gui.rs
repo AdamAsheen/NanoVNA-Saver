@@ -245,10 +245,10 @@ impl eframe::App for NanoVNASaverApp {
                         ui.add_sized(
                             [150.0, 0.0],
                             egui::DragValue::new(&mut self.if_bandwidth)
-                                .clamp_range(0..=u32::MAX)
+                                .clamp_range(0..=100)
                                 .speed(1.0),
                         );
-                        ui.label("IF Bandwidth (Hz)");
+                        ui.label("IF Bandwidth");
                     });
                 });
 
