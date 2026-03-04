@@ -68,7 +68,6 @@ fn main() {
         101
     } else {
         args.num_points
-
     };
     let config = RunConfig {
         num_sweeps: args.num_sweeps,
