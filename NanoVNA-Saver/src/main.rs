@@ -1,15 +1,17 @@
 use clap::Parser;
-use std::thread;
-mod sweep;
+use polars::prelude::{CsvWriter, SerWriter};
+use std::fs::File;
+use std::path::PathBuf;
+
+use nanovna_saver::{RunConfig, run};
 
 #[derive(Parser, Debug)]
 #[command(name = "nanovna-saver")]
-#[command(about = "Performs NanoVNA sweeps with configurable parameters")]
 struct Args {
-    #[arg(long, default_value_t = 1)]
+    #[arg(short = 's', long, default_value_t = 1, conflicts_with = "time")]
     num_sweeps: usize,
 
-    #[arg(long, default_value_t = 1)]
+    #[arg(short = 'd', long, default_value_t = 1)]
     vna_number: usize,
 
     #[arg(long, default_value_t = 50_000)]
@@ -18,67 +20,97 @@ struct Args {
     #[arg(long, default_value_t = 900_000_000)]
     end_freq: u64,
 
-    #[arg(long, default_value_t = 101)]
+    #[arg(short = 'p', long, default_value_t = 101)]
     num_points: usize,
 
     #[arg(long, default_value_t = 2)]
     num_ports: usize,
 
-    #[arg(long)]
+    #[arg(short = 'i', long)]
     if_bandwidth: Option<u32>,
+
+    #[arg(long)]
+    path: Option<PathBuf>,
+
+    #[arg(long, conflicts_with = "num_sweeps")]
+    time: Option<u64>,
+
+    #[arg(long)]
+    label: Option<String>,
+
+    #[arg(long)]
+    no_save: bool,
+
+    #[arg(long)]
+    no_print: bool,
+}
+
+fn print_row(row: &str) {
+    println!("{}", row);
 }
 
 fn main() {
     let args = Args::parse();
 
-    let Args {
-        num_sweeps,
-        vna_number,
-        start_freq,
-        end_freq,
+    let output_path = args.path.unwrap_or_else(|| {
+        std::env::current_dir()
+            .expect("Failed to get current working directory")
+            .join("output.csv")
+    });
+
+    let label = args.label.unwrap_or_else(|| "default_label".to_string());
+
+    let num_points = if args.num_points > 101 {
+        eprintln!(
+            "Requested {} points, but NanoVNA supports a maximum of 101. Defaulting  to 101.",
+            args.num_points
+        );
+        101
+    } else {
+        args.num_points
+    };
+    let config = RunConfig {
+        num_sweeps: args.num_sweeps,
+        vna_number: args.vna_number,
+        start_freq: args.start_freq,
+        end_freq: args.end_freq,
         num_points,
-        num_ports,
-        if_bandwidth,
-    } = args;
+        num_ports: args.num_ports,
+        if_bandwidth: args.if_bandwidth,
+        time: args.time,
+        label,
+        row_callback: if args.no_print { None } else { Some(print_row) },
+    };
 
-    let ports = tokio_serial::available_ports().expect("Failed to enumerate serial ports");
+    let result = match run(config) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("{e}");
+            return;
+        }
+    };
 
-    if ports.is_empty() {
-        eprintln!("No VNAs found");
-        return;
-    }
+    let mut final_df = result.dataframe;
 
-    // Checks if the serial port is connected
-    let vnas_to_use = ports.into_iter().take(vna_number);
-    // Print line for table header
-    println!(
-        "| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |"
-    );
+    let sweeps_completed = final_df
+        .column("sweep_id")
+        .expect("missing sweep_id column")
+        .n_unique()
+        .expect("failed to count sweeps");
 
-    let mut handles = Vec::new();
+    println!("Completed {} sweeps.", sweeps_completed);
 
-    for (idx, port) in vnas_to_use.enumerate() {
-        let port_name = port.port_name.clone();
-        let vna_number = idx + 1;
+    println!("Total bytes read: {}", result.total_bytes);
+    println!("Elapsed time: {:.2} s", result.elapsed_seconds);
 
-        let params = sweep::SweepParams {
-            port_name,
-            num_sweeps,
-            vna_number,
-            start_freq,
-            end_freq,
-            num_points,
-            num_ports,
-            if_bandwidth,
-        };
-        let handle = thread::spawn(move || {
-            sweep::run_on_port(params);
-        });
+    if !args.no_save {
+        let mut file = File::create(&output_path).expect("Failed to create CSV file");
 
-        handles.push(handle);
-    }
+        CsvWriter::new(&mut file)
+            .include_header(true)
+            .finish(&mut final_df)
+            .expect("Failed to write CSV");
 
-    for h in handles {
-        h.join().unwrap();
+        println!("Saved CSV to {:?}", output_path);
     }
 }

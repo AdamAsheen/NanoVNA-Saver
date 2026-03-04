@@ -1,6 +1,7 @@
 use polars::frame::DataFrame;
 use polars::prelude::NamedFrom;
 use polars::series::Series;
+use std::error::Error;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio_serial::{ClearBuffer, SerialPort};
 use uuid::Uuid;
@@ -15,9 +16,18 @@ pub struct SweepParams {
     pub num_points: usize,
     pub num_ports: usize,
     pub if_bandwidth: Option<u32>,
+    pub time: Option<u64>,
+    pub label: String,
+    pub row_callback: Option<fn(&str)>,
 }
 
-pub fn run_on_port(params: SweepParams) {
+pub struct SweepResult {
+    pub dataframe: DataFrame,
+    pub total_bytes: usize,
+    pub elapsed_seconds: f64,
+}
+
+pub fn run_on_port(params: SweepParams) -> Result<SweepResult, Box<dyn Error + Send + Sync>> {
     let SweepParams {
         port_name,
         num_sweeps,
@@ -27,59 +37,41 @@ pub fn run_on_port(params: SweepParams) {
         num_points,
         num_ports,
         if_bandwidth,
+        time,
+        label,
+        row_callback,
     } = params;
-    println!("[{}] Starting VNA worker", port_name);
 
     let builder = tokio_serial::new(&port_name, 115200).timeout(Duration::from_millis(100));
 
-    let mut port = match builder.open() {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("[{}] Failed to open port: {}", port_name, e);
-            return;
-        }
-    };
+    let mut port = builder.open()?;
 
     clear_shell(&mut *port);
 
-    // Seperation of titles and headers
-    let label = "default_label".to_string();
-    let step_freq: f64 = (end_freq - start_freq) as f64 / (num_points - 1) as f64;
+    let step_freq: f64 = if num_points > 1 {
+        (end_freq - start_freq) as f64 / (num_points - 1) as f64
+    } else {
+        0.0
+    };
 
-    // Allow IF bandwidth to be chosen from terminal instead of the shell
     if let Some(bw) = if_bandwidth {
         let _ = port.clear(ClearBuffer::Input);
 
         let set_cmd = format!("bandwidth {}\r\n", bw);
-        if let Err(e) = port.write_all(set_cmd.as_bytes()) {
-            eprintln!("[{}] Error failed to set bandwidth: {}", port_name, e)
-        }
-        let _ = port.flush();
+        port.write_all(set_cmd.as_bytes())?;
+        port.flush()?;
 
         std::thread::sleep(Duration::from_millis(100));
 
         let mut resp_buff = [0u8; 512];
-        match port.read(&mut resp_buff) {
-            Ok(n) if n > 0 => {
-                let response = String::from_utf8_lossy(&resp_buff[..n]);
-                println!(
-                    "[{}] IF bandwidth response:\n{}",
-                    port_name,
-                    response.trim()
-                );
-            }
-            Ok(_) => {
-                eprint!("[{}] IF bandwidth set response: <empty>", port_name)
-            }
-            Err(e) => {
-                eprint!("[{}] Failed to read bandwidth response: {}", port_name, e)
-            }
-        }
+        let _ = port.read(&mut resp_buff);
+
         clear_shell(&mut *port);
     }
 
     let start_time = Instant::now();
     let mut total_bytes = 0usize;
+
     let mut sweep_ids = Vec::new();
     let mut labels = Vec::new();
     let mut vna_numbers = Vec::new();
@@ -90,39 +82,36 @@ pub fn run_on_port(params: SweepParams) {
     let mut real_parts = Vec::new();
     let mut imag_parts = Vec::new();
 
-    for sweep_idx in 0..num_sweeps {
-        let sweep_id = Uuid::new_v4();
+    let time_limit = time.map(Duration::from_secs);
+    let time_start = Instant::now();
+    let mut sweep_idx = 0;
 
-        let time_cmd_sent_s11 = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64();
+    while {
+        if let Some(limit) = time_limit {
+            time_start.elapsed() < limit
+        } else {
+            sweep_idx < num_sweeps
+        }
+    } {
+        let sweep_id = Uuid::new_v4();
+        let sweep_id_string = sweep_id.to_string();
+
+        let time_cmd_sent_s11 = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
 
         match perform_sweep(&mut *port, 0, start_freq, end_freq, num_points) {
             Ok((bytes_read, sweep_data)) => {
                 total_bytes += bytes_read;
 
-                println!(
-                    "[{}] Sweep {} complete ({} bytes)",
-                    port_name,
-                    sweep_idx + 1,
-                    bytes_read
-                );
-
                 let mut point_index = 0usize;
 
                 for line in sweep_data.lines() {
                     let line = line.trim();
-                    if line.is_empty() {
-                        continue;
-                    }
-                    if line.starts_with("NanoVNA") {
-                        continue;
-                    }
-                    if line.starts_with("ch>") {
-                        continue;
-                    }
-                    if line.starts_with("data") {
+
+                    if line.is_empty()
+                        || line.starts_with("NanoVNA")
+                        || line.starts_with("ch>")
+                        || line.starts_with("data")
+                    {
                         continue;
                     }
 
@@ -137,22 +126,35 @@ pub fn run_on_port(params: SweepParams) {
                     };
 
                     let freq = start_freq as f64 + point_index as f64 * step_freq;
-                    let time_reading_received = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs_f64();
 
-                    println!(
-                        "| {} | {} | {} | {:.6} | {:.6} | {:.0} | S11 | {} | {} |",
-                        sweep_id,
-                        label,
-                        vna_number,
-                        time_cmd_sent_s11,
-                        time_reading_received,
-                        freq,
-                        real,
-                        imag
-                    );
+                    let time_reading_received =
+                        SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
+
+                    sweep_ids.push(sweep_id_string.clone());
+                    labels.push(label.clone());
+                    vna_numbers.push(vna_number as i32);
+                    time_cmd_sent_vec.push(time_cmd_sent_s11);
+                    time_received_vec.push(time_reading_received);
+                    frequencies.push(freq);
+                    channels.push("S11".to_string());
+                    real_parts.push(real);
+                    imag_parts.push(imag);
+
+                    if let Some(callback) = row_callback {
+                        let row = format!(
+                            "| {} | {} | {} | {:.6} | {:.6} | {:.0} | {} | {} | {} |",
+                            sweep_id_string,
+                            label,
+                            vna_number,
+                            time_cmd_sent_s11,
+                            time_reading_received,
+                            freq,
+                            "S11",
+                            real,
+                            imag
+                        );
+                        callback(&row);
+                    }
 
                     point_index += 1;
                     if point_index >= num_points {
@@ -160,18 +162,11 @@ pub fn run_on_port(params: SweepParams) {
                     }
                 }
             }
-            Err(e) => {
-                eprintln!("[{}] Sweep {} S11 failed: {}", port_name, sweep_idx + 1, e);
-                break;
-            }
+            Err(e) => return Err(Box::new(e)),
         }
 
-        // for S21 port (data 1)
         if num_ports == 2 {
-            let time_cmd_sent_s21 = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs_f64();
+            let time_cmd_sent_s21 = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
 
             match perform_sweep(&mut *port, 1, start_freq, end_freq, num_points) {
                 Ok((bytes_read, s21_data)) => {
@@ -181,35 +176,34 @@ pub fn run_on_port(params: SweepParams) {
 
                     for line in s21_data.lines() {
                         let line = line.trim();
-                        if line.is_empty() {
+
+                        if line.is_empty()
+                            || line.starts_with("NanoVNA")
+                            || line.starts_with("data")
+                        {
                             continue;
                         }
-                        if line.starts_with("NanoVNA") {
-                            continue;
-                        }
+
                         if line.starts_with("ch>") {
                             break;
-                        }
-                        if line.starts_with("data") {
-                            continue;
                         }
 
                         let mut it = line.split_whitespace();
                         let (Some(real_s), Some(imag_s)) = (it.next(), it.next()) else {
                             continue;
                         };
+
                         let (Ok(real), Ok(imag)) = (real_s.parse::<f64>(), imag_s.parse::<f64>())
                         else {
                             continue;
                         };
 
                         let freq = start_freq as f64 + point_index as f64 * step_freq;
-                        let time_received = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs_f64();
 
-                        sweep_ids.push(sweep_id.to_string());
+                        let time_received =
+                            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
+
+                        sweep_ids.push(sweep_id_string.clone());
                         labels.push(label.clone());
                         vna_numbers.push(vna_number as i32);
                         time_cmd_sent_vec.push(time_cmd_sent_s21);
@@ -219,18 +213,33 @@ pub fn run_on_port(params: SweepParams) {
                         real_parts.push(real);
                         imag_parts.push(imag);
 
+                        if let Some(callback) = row_callback {
+                            let row = format!(
+                                "| {} | {} | {} | {:.6} | {:.6} | {:.0} | {} | {} | {} |",
+                                sweep_id_string,
+                                label,
+                                vna_number,
+                                time_cmd_sent_s21,
+                                time_received,
+                                freq,
+                                "S21",
+                                real,
+                                imag
+                            );
+                            callback(&row);
+                        }
+
                         point_index += 1;
                         if point_index >= num_points {
                             break;
                         }
                     }
                 }
-                Err(e) => {
-                    eprintln!("[{}] Sweep {} S21 failed: {}", port_name, sweep_idx + 1, e);
-                    break;
-                }
+                Err(e) => return Err(Box::new(e)),
             }
         }
+
+        sweep_idx += 1;
     }
 
     let elapsed = start_time.elapsed().as_secs_f64();
@@ -245,15 +254,13 @@ pub fn run_on_port(params: SweepParams) {
         Series::new("channel", channels),
         Series::new("real", real_parts),
         Series::new("imag", imag_parts),
-    ])
-    .expect("Failed to create DataFrame");
+    ])?;
 
-    println!("{}", df);
-
-    println!(
-        "[{}] Finished: {} sweeps, {} bytes, {:.2}s",
-        port_name, num_sweeps, total_bytes, elapsed
-    );
+    Ok(SweepResult {
+        dataframe: df,
+        total_bytes,
+        elapsed_seconds: elapsed,
+    })
 }
 
 fn clear_shell(port: &mut dyn SerialPort) {
@@ -276,10 +283,9 @@ fn perform_sweep(
     port.flush()?;
 
     let mut scratch = [0u8; 1];
-    let mut recent = Vec::new(); // keep track of last few bytes to match "ch>"
+    let mut recent = Vec::new();
 
     let start = Instant::now();
-    // Timeout for sweep execution can be long if many points
     let sweep_timeout = Duration::from_millis(5000 + (num_points as u64 * 20));
 
     loop {
@@ -298,15 +304,9 @@ fn perform_sweep(
                     break;
                 }
             }
-            Ok(_) => {
-                std::thread::yield_now();
-            }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::yield_now();
-            }
-            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                // ignore
-            }
+            Ok(_) => std::thread::yield_now(),
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => std::thread::yield_now(),
+            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {}
             Err(e) => return Err(e),
         }
     }
@@ -316,11 +316,9 @@ fn perform_sweep(
     port.flush()?;
 
     let mut buf = Vec::with_capacity(num_points * 30);
-    // Pre-allocated buffer: approx 20-30 bytes per line * num_points
-
     let mut total_read = 0usize;
+
     let start = Instant::now();
-    // Timeout for reading data
     let read_timeout = Duration::from_millis(3000 + (num_points as u64 * 10));
 
     loop {
@@ -329,19 +327,19 @@ fn perform_sweep(
         }
 
         let mut chunk = [0u8; 4096];
+
         match port.read(&mut chunk) {
             Ok(n) => {
                 if n > 0 {
                     buf.extend_from_slice(&chunk[..n]);
                     total_read += n;
 
-                    // Check for end of data stream ("ch>")
                     if total_read >= 3 {
                         let tail = &buf[total_read - 3..];
                         if tail == b"ch>" {
                             break;
                         }
-                        // Also check for "ch> " (space) or "ch>\r"
+
                         if total_read >= 4 {
                             let tail4 = &buf[total_read - 4..];
                             if tail4 == b"ch> " || tail4 == b"ch>\r" || tail4 == b"ch>\n" {
@@ -353,12 +351,8 @@ fn perform_sweep(
                     std::thread::yield_now();
                 }
             }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                std::thread::yield_now();
-            }
-            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
-                // ignore
-            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => std::thread::yield_now(),
+            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {}
             Err(e) => return Err(e),
         }
     }
@@ -366,7 +360,6 @@ fn perform_sweep(
     let sweep_ascii = String::from_utf8_lossy(&buf).to_string();
     Ok((total_read, sweep_ascii))
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
