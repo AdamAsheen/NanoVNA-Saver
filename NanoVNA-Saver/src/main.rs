@@ -68,7 +68,6 @@ fn main() {
         if_bandwidth: args.if_bandwidth,
         time: args.time,
         label,
-        no_print: args.no_print,
     };
 
     let result = match run(config) {
