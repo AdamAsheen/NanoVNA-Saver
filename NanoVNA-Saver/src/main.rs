@@ -81,6 +81,37 @@ fn main() {
 
     let mut final_df = result.dataframe;
 
+    if !args.no_print {
+        println!(
+            "| ID | Label | VNA NUMBER | TIME COMMAND SENT | TIME READING RECEIVED | Frequency | SParameter | Real | Imaginary |"
+        );
+
+        let sweep_id = final_df.column("sweep_id").unwrap().str().unwrap();
+        let label = final_df.column("label").unwrap().str().unwrap();
+        let vna_number = final_df.column("vna_number").unwrap().i32().unwrap();
+        let time_cmd_sent = final_df.column("time_cmd_sent").unwrap().f64().unwrap();
+        let time_received = final_df.column("time_received").unwrap().f64().unwrap();
+        let freq = final_df.column("frequency_hz").unwrap().f64().unwrap();
+        let channel = final_df.column("channel").unwrap().str().unwrap();
+        let real = final_df.column("real").unwrap().f64().unwrap();
+        let imag = final_df.column("imag").unwrap().f64().unwrap();
+
+        for i in 0..final_df.height() {
+            println!(
+                "| {} | {} | {} | {:.6} | {:.6} | {:.0} | {} | {} | {} |",
+                sweep_id.get(i).unwrap(),
+                label.get(i).unwrap(),
+                vna_number.get(i).unwrap(),
+                time_cmd_sent.get(i).unwrap(),
+                time_received.get(i).unwrap(),
+                freq.get(i).unwrap(),
+                channel.get(i).unwrap(),
+                real.get(i).unwrap(),
+                imag.get(i).unwrap()
+            );
+        }
+    }
+
     println!("Total bytes read: {}", result.total_bytes);
     println!("Elapsed time: {:.2} s", result.elapsed_seconds);
 
