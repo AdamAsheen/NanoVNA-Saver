@@ -2,7 +2,8 @@ use clap::Parser;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::path::PathBuf;
-
+mod gui;
+use gui::NanoVNASaverApp;
 use nanovna_saver::{RunConfig, run};
 
 #[derive(Parser, Debug)]
@@ -50,6 +51,16 @@ fn print_row(row: &str) {
 }
 
 fn main() {
+    let options = eframe::NativeOptions {
+        viewport: eframe::egui::ViewportBuilder::default().with_inner_size([1900.0, 1000.0]),
+        ..Default::default()
+    };
+    let _ = eframe::run_native(
+        "NanoVNA-Saver",
+        options,
+        Box::new(|_cc| Box::new(NanoVNASaverApp::default())),
+    );
+
     let args = Args::parse();
 
     let output_path = args.path.unwrap_or_else(|| {
