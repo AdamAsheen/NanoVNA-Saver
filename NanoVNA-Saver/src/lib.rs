@@ -55,34 +55,34 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
 
         handles.push(thread::spawn(move || sweep::run_on_port(params)));
     }
-let mut dataframes = Vec::new();
-let mut total_bytes = 0;
-let mut total_time = 0.0;
+    let mut dataframes = Vec::new();
+    let mut total_bytes = 0;
+    let mut total_time = 0.0;
 
-for h in handles {
-    let result = h
-        .join()
-        .map_err(|_| "Thread panicked")?
-        .map_err(|_| "Sweep failed")?;
+    for h in handles {
+        let result = h
+            .join()
+            .map_err(|_| "Thread panicked")?
+            .map_err(|_| "Sweep failed")?;
 
-    total_bytes += result.total_bytes;
-    total_time += result.elapsed_seconds;
+        total_bytes += result.total_bytes;
+        total_time += result.elapsed_seconds;
 
-    dataframes.push(result.dataframe);
-}
+        dataframes.push(result.dataframe);
+    }
 
-let mut iter = dataframes.into_iter();
-let mut final_df = iter.next().ok_or("No data collected")?;
+    let mut iter = dataframes.into_iter();
+    let mut final_df = iter.next().ok_or("No data collected")?;
 
-for df in iter {
-    final_df
-        .vstack_mut(&df)
-        .map_err(|_| "Failed to stack DataFrames")?;
-}
+    for df in iter {
+        final_df
+            .vstack_mut(&df)
+            .map_err(|_| "Failed to stack DataFrames")?;
+    }
 
-Ok(SweepResult {
-    dataframe: final_df,
-    total_bytes,
-    elapsed_seconds: total_time,
-}) 
+    Ok(SweepResult {
+        dataframe: final_df,
+        total_bytes,
+        elapsed_seconds: total_time,
+    })
 }
