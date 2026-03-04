@@ -18,6 +18,7 @@ pub struct SweepParams {
     pub if_bandwidth: Option<u32>,
     pub time: Option<u64>,
     pub label: String,
+    pub row_callback: Option<fn(&str)>,
 }
 
 pub struct SweepResult {
@@ -38,6 +39,7 @@ pub fn run_on_port(params: SweepParams) -> Result<SweepResult, Box<dyn Error + S
         if_bandwidth,
         time,
         label,
+        row_callback,
     } = params;
 
     let builder = tokio_serial::new(&port_name, 115200).timeout(Duration::from_millis(100));
@@ -138,6 +140,22 @@ pub fn run_on_port(params: SweepParams) -> Result<SweepResult, Box<dyn Error + S
                     real_parts.push(real);
                     imag_parts.push(imag);
 
+                    if let Some(callback) = row_callback {
+                        let row = format!(
+                            "| {} | {} | {} | {:.6} | {:.6} | {:.0} | {} | {} | {} |",
+                            sweep_id_string,
+                            label,
+                            vna_number,
+                            time_cmd_sent_s11,
+                            time_reading_received,
+                            freq,
+                            "S11",
+                            real,
+                            imag
+                        );
+                        callback(&row);
+                    }
+
                     point_index += 1;
                     if point_index >= num_points {
                         break;
@@ -194,6 +212,22 @@ pub fn run_on_port(params: SweepParams) -> Result<SweepResult, Box<dyn Error + S
                         channels.push("S21".to_string());
                         real_parts.push(real);
                         imag_parts.push(imag);
+
+                        if let Some(callback) = row_callback {
+                            let row = format!(
+                                "| {} | {} | {} | {:.6} | {:.6} | {:.0} | {} | {} | {} |",
+                                sweep_id_string,
+                                label,
+                                vna_number,
+                                time_cmd_sent_s21,
+                                time_received,
+                                freq,
+                                "S21",
+                                real,
+                                imag
+                            );
+                            callback(&row);
+                        }
 
                         point_index += 1;
                         if point_index >= num_points {
