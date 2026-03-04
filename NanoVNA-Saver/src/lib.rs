@@ -16,7 +16,6 @@ pub struct RunConfig {
     pub if_bandwidth: Option<u32>,
     pub time: Option<u64>,
     pub label: String,
-    pub no_print: bool,
 }
 
 pub fn run(config: RunConfig) -> Result<DataFrame, String> {
@@ -53,7 +52,6 @@ pub fn run(config: RunConfig) -> Result<DataFrame, String> {
             if_bandwidth: config.if_bandwidth,
             time: config.time,
             label: config.label.clone(),
-            no_print: config.no_print,
         };
 
         handles.push(thread::spawn(move || sweep::run_on_port(params)));
