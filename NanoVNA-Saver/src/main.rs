@@ -7,6 +7,7 @@ use tokio_serial::SerialPortType;
 mod gui;
 mod sweep;
 use gui::NanoVNASaverApp;
+use nanovna_saver::{RunConfig, run};
 
 #[derive(Parser, Debug)]
 #[command(name = "nanovna-saver")]
