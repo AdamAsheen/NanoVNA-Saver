@@ -190,7 +190,7 @@ impl eframe::App for NanoVNASaverApp {
                             ui.add_sized(
                                 [120.0, 0.0],
                                 egui::DragValue::new(&mut self.start_freq)
-                                    .clamp_range(0..=u64::MAX)
+                                    .range(0..=u64::MAX)
                                     .speed(1.0),
                             );
                             ui.label("Start Freq (Hz)");
@@ -200,7 +200,7 @@ impl eframe::App for NanoVNASaverApp {
                             ui.add_sized(
                                 [120.0, 0.0],
                                 egui::DragValue::new(&mut self.end_freq)
-                                    .clamp_range(0..=u64::MAX)
+                                    .range(0..=u64::MAX)
                                     .speed(1.0),
                             );
                             ui.label("End Freq (Hz)");
@@ -213,7 +213,7 @@ impl eframe::App for NanoVNASaverApp {
                             ui.add_sized(
                                 [80.0, 0.0],
                                 egui::DragValue::new(&mut self.num_points)
-                                    .clamp_range(0..=101)
+                                    .range(0..=101)
                                     .speed(1.0),
                             );
                             ui.label("Points");
@@ -247,7 +247,7 @@ impl eframe::App for NanoVNASaverApp {
                         ui.add_sized(
                             [150.0, 0.0],
                             egui::DragValue::new(&mut self.if_bandwidth)
-                                .clamp_range(0..=100)
+                                .range(0..=100)
                                 .speed(1.0),
                         );
                         ui.label("IF Bandwidth");
@@ -262,7 +262,7 @@ impl eframe::App for NanoVNASaverApp {
                         ui.add_sized(
                             [80.0, 0.0],
                             egui::DragValue::new(&mut self.num_sweeps)
-                                .clamp_range(0..=2147483647) //max for i32 since that's what the NanoVNA accepts
+                                .range(0..=2147483647) //max for i32 since that's what the NanoVNA accepts
                                 .speed(1.0),
                         );
                         ui.label("Num Sweeps");
@@ -271,7 +271,7 @@ impl eframe::App for NanoVNASaverApp {
                         ui.add_sized(
                             [80.0, 0.0],
                             egui::DragValue::new(&mut self.time)
-                                .clamp_range(0..=2147483647)
+                                .range(0..=2147483647)
                                 .speed(1.0),
                         );
                         ui.label("Time (s)");

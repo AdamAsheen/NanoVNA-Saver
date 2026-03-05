@@ -58,7 +58,7 @@ fn main() {
     let _ = eframe::run_native(
         "NanoVNA-Saver",
         options,
-        Box::new(|_cc| Box::new(NanoVNASaverApp::default())),
+        Box::new(|_cc| Ok(Box::new(NanoVNASaverApp::default()))),
     );
 
     let args = Args::parse();
