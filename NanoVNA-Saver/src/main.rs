@@ -1,14 +1,19 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::path::PathBuf;
+
 mod gui;
 use gui::NanoVNASaverApp;
+
 use nanovna_saver::{RunConfig, run};
 
+fn print_row(row: &str) {
+    println!("{}", row);
+}
+
 #[derive(Parser, Debug)]
-#[command(name = "nanovna-saver")]
-struct Args {
+struct CliArgs {
     #[arg(short = 's', long, default_value_t = 1, conflicts_with = "time")]
     num_sweeps: usize,
 
@@ -46,23 +51,35 @@ struct Args {
     no_print: bool,
 }
 
-fn print_row(row: &str) {
-    println!("{}", row);
+#[derive(Parser)]
+#[command(name = "nanovna-saver")]
+struct Args {
+    #[command(subcommand)]
+    command: Option<Command>,
+
+    #[command(flatten)]
+    cli: CliArgs,
 }
 
-fn main() {
+#[derive(Subcommand)]
+enum Command {
+    Gui,
+}
+
+fn launch_gui() {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default().with_inner_size([1900.0, 1000.0]),
         ..Default::default()
     };
+
     let _ = eframe::run_native(
         "NanoVNA-Saver",
         options,
         Box::new(|_cc| Ok(Box::new(NanoVNASaverApp::default()))),
     );
+}
 
-    let args = Args::parse();
-
+fn run_cli(args: CliArgs) {
     let output_path = args.path.unwrap_or_else(|| {
         std::env::current_dir()
             .expect("Failed to get current working directory")
@@ -73,13 +90,14 @@ fn main() {
 
     let num_points = if args.num_points > 101 {
         eprintln!(
-            "Requested {} points, but NanoVNA supports a maximum of 101. Defaulting  to 101.",
+            "Requested {} points, but NanoVNA supports a maximum of 101. Defaulting to 101.",
             args.num_points
         );
         101
     } else {
         args.num_points
     };
+
     let config = RunConfig {
         num_sweeps: args.num_sweeps,
         vna_number: args.vna_number,
@@ -110,7 +128,6 @@ fn main() {
         .expect("failed to count sweeps");
 
     println!("Completed {} sweeps.", sweeps_completed);
-
     println!("Total bytes read: {}", result.total_bytes);
     println!("Elapsed time: {:.2} s", result.elapsed_seconds);
 
@@ -123,5 +140,14 @@ fn main() {
             .expect("Failed to write CSV");
 
         println!("Saved CSV to {:?}", output_path);
+    }
+}
+
+fn main() {
+    let args = Args::parse();
+
+    match args.command {
+        Some(Command::Gui) => launch_gui(),
+        None => run_cli(args.cli),
     }
 }
