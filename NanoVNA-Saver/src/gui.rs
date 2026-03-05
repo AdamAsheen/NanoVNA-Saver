@@ -121,15 +121,17 @@ impl eframe::App for NanoVNASaverApp {
                         egui::Color32::from_rgb(40, 160, 40)
                     };
 
+                    let strong_text = egui::RichText::new(button_text).strong();
+
                     if self.is_running {
                         if ui
-                            .add(egui::Button::new(button_text).fill(button_color))
+                            .add(egui::Button::new(strong_text).fill(button_color))
                             .clicked()
                         {
                             self.is_running = false;
                         }
                     } else if ui
-                        .add(egui::Button::new(button_text).fill(button_color))
+                        .add(egui::Button::new(strong_text).fill(button_color))
                         .clicked()
                     {
                         if validation_errors.is_empty() {
