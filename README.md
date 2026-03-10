@@ -12,7 +12,7 @@ Python solution average speed per sweep: 4.2 seconds
 Rust solution average speed per sweep: 0.3 seconds
 
 ### Usage
-The usage of the tool is as follow, all flags are completely optional and ommision of flags will result in default values being used instead.
+The usage of the tool is as follow, all flags are completely optional and ommision of flags will result in default values being used instead. Usage for IFBandwidth can be found [here](IfBandwidths.md)
 ```bash
 Usage: nanovna-saver [OPTIONS]
 
