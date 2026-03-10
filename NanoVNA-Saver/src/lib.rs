@@ -1,6 +1,7 @@
 use std::thread;
 use tokio_serial::SerialPortType;
 
+pub mod gui;
 pub mod sweep;
 
 use sweep::{SweepParams, SweepResult};
