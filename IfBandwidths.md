@@ -1,6 +1,10 @@
 # NanoVNA IF Bandwidth Mapping 
 
 This table shows IF bandwidth values and the index (or index range) that selects them.
+Example usage is as follows:
+```bash
+nanovna-saver -i --if-bandwidth <IF_BANDWIDTH>
+```
 
 | IF Bandwidth (Hz) | Index / Range |
 |-------------------|---------------|
