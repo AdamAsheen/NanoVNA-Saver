@@ -16,4 +16,12 @@ eframe = "0.29"
 [dev-dependencies]
 mockall = "0.14.0"
 
+[[bin]]
+name = "nanovna-saver"
+path = "src/bin/cli.rs"
+
+[[bin]]
+name = "nanovna-saver-gui"
+path = "src/bin/gui.rs"
+
 
