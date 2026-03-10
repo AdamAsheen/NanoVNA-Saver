@@ -14,7 +14,7 @@ Rust solution average speed per sweep: 0.3 seconds
 ### Usage
 The usage of the tool is as follow, all flags are completely optional and ommision of flags will result in default values being used instead.
 ```bash
-Usage: NanoVNA-Saver [OPTIONS]
+Usage: nanovna-saver [OPTIONS]
 
 Options:
   -s, --num-sweeps <NUM_SWEEPS>      [default: 1]
@@ -24,5 +24,10 @@ Options:
   -p, --num-points <NUM_POINTS>      [default: 101]
       --num-ports <NUM_PORTS>        [default: 2]
   -i, --if-bandwidth <IF_BANDWIDTH>
+      --path <PATH>
+      --time <TIME>
+      --label <LABEL>
+      --no-save
+      --no-print
   -h, --help                         Print help
 ```
