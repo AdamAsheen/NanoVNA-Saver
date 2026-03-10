@@ -1,6 +1,6 @@
 
 [package]
-name = "NanoVNA-Saver"
+name = "nanovna-saver"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,6 +9,8 @@ tokio-serial = "5.4.5"
 uuid = { version = "1.20.0", features = ["v4"] }
 polars = { version = "0.36", default-features = false, features = ["fmt", "lazy", "csv", "parquet","dtype-full"] }
 hashbrown = { version = "0.14.5", features = ["raw"] }
+clap = { version = "4", features = ["derive"]}
+eframe = "0.29"
 
 
 [dev-dependencies]
