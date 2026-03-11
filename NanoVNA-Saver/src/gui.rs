@@ -405,6 +405,7 @@ impl eframe::App for NanoVNASaverApp {
 
                 // Label field
                 ui.group(|ui| {
+                    ui.set_min_height(77.0);
                     ui.vertical(|ui| {
                         ui.add(
                             egui::TextEdit::singleline(&mut self.label)
@@ -412,7 +413,7 @@ impl eframe::App for NanoVNASaverApp {
                                 .desired_width(150.0),
                         );
 
-                        ui.add_space(4.0);
+                        ui.add_space(12.0);
 
                         ui.add_sized(
                             [150.0, 0.0],
