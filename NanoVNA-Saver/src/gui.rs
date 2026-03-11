@@ -5,12 +5,14 @@ pub struct NanoVNASaverApp {
     terminal: String,
     available_ports: Vec<String>,
     selected_port: Option<String>,
-    start_freq: String,
-    end_freq: String,
-    num_points: String,
+    start_freq: u64,
+    end_freq: u64,
+    num_points: usize,
     num_ports: usize,
     label: String,
-    if_bandwidth: String,
+    if_bandwidth: u32,
+    time: u64,
+    num_sweeps: usize,
     is_running: bool,
 }
 
@@ -20,12 +22,14 @@ impl Default for NanoVNASaverApp {
             terminal: String::new(),
             available_ports: Vec::new(),
             selected_port: None,
-            start_freq: "50000".to_string(),
-            end_freq: "900000000".to_string(),
-            num_points: "101".to_string(),
+            start_freq: 50_000,
+            end_freq: 900_000_000,
+            num_points: 101,
             num_ports: 2,
             label: String::new(),
-            if_bandwidth: String::new(),
+            if_bandwidth: 0,
+            time: 0,
+            num_sweeps: 1,
             is_running: false,
         };
         app.refresh_ports();
@@ -49,10 +53,30 @@ impl NanoVNASaverApp {
             self.selected_port = self.available_ports.first().cloned();
         }
     }
+
+    fn validation_messages(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        if self.start_freq >= self.end_freq {
+            errors.push("Start frequency must be less than End frequency".to_string());
+        }
+
+        if self.num_points > 101 {
+            errors.push("Points must be 101 or less".to_string());
+        }
+
+        if (self.time == 0 && self.num_sweeps == 0) || (self.time > 0 && self.num_sweeps > 0) {
+            errors.push("Either Time or Num Sweeps must be set, but not both".to_string());
+        }
+
+        errors
+    }
 }
 
 impl eframe::App for NanoVNASaverApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let validation_errors = self.validation_messages();
+
         // Calculate 1/3 of window width for results
         let window_width = ctx.screen_rect().width();
         let terminal_width = window_width / 3.0;
@@ -60,14 +84,27 @@ impl eframe::App for NanoVNASaverApp {
         // Right side - results
         egui::SidePanel::right("Terminal_panel")
             .exact_width(terminal_width)
+            .frame(
+                egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(12, 12, 12))
+                    .inner_margin(egui::Margin::symmetric(8.0, 8.0)),
+            )
             .show(ctx, |ui| {
-                ui.heading("Terminal");
+                ui.label(
+                    egui::RichText::new("Terminal")
+                        .color(egui::Color32::WHITE)
+                        .strong(),
+                );
                 ui.separator();
 
                 egui::ScrollArea::vertical()
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
-                        ui.label(&self.terminal);
+                        ui.label(
+                            egui::RichText::new(&self.terminal)
+                                .monospace()
+                                .color(egui::Color32::WHITE),
+                        );
                     });
             });
 
@@ -78,8 +115,36 @@ impl eframe::App for NanoVNASaverApp {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let button_text = if self.is_running { "Stop" } else { "Start" };
-                    if ui.button(button_text).clicked() {
-                        self.is_running = !self.is_running;
+                    let button_color = if self.is_running {
+                        egui::Color32::from_rgb(200, 40, 40)
+                    } else {
+                        egui::Color32::from_rgb(40, 160, 40)
+                    };
+
+                    let strong_text = egui::RichText::new(button_text).strong();
+
+                    if self.is_running {
+                        if ui
+                            .add(egui::Button::new(strong_text).fill(button_color))
+                            .clicked()
+                        {
+                            self.is_running = false;
+                        }
+                    } else if ui
+                        .add(egui::Button::new(strong_text).fill(button_color))
+                        .clicked()
+                    {
+                        if validation_errors.is_empty() {
+                            self.is_running = true;
+                        } else {
+                            for error in &validation_errors {
+                                if !self.terminal.is_empty() {
+                                    self.terminal.push('\n');
+                                }
+                                self.terminal.push_str("Error: ");
+                                self.terminal.push_str(error);
+                            }
+                        }
                     }
                 });
             });
@@ -122,19 +187,21 @@ impl eframe::App for NanoVNASaverApp {
                     ui.horizontal(|ui| {
                         // Start and End (vertical)
                         ui.vertical(|ui| {
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.start_freq)
-                                    .hint_text("Start Freq (Hz)")
-                                    .desired_width(120.0),
+                            ui.add_sized(
+                                [120.0, 0.0],
+                                egui::DragValue::new(&mut self.start_freq)
+                                    .range(0..=u64::MAX)
+                                    .speed(1.0),
                             );
                             ui.label("Start Freq (Hz)");
 
                             ui.add_space(4.0);
 
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.end_freq)
-                                    .hint_text("End Freq (Hz)")
-                                    .desired_width(120.0),
+                            ui.add_sized(
+                                [120.0, 0.0],
+                                egui::DragValue::new(&mut self.end_freq)
+                                    .range(0..=u64::MAX)
+                                    .speed(1.0),
                             );
                             ui.label("End Freq (Hz)");
                         });
@@ -143,10 +210,11 @@ impl eframe::App for NanoVNASaverApp {
 
                         // Points (to the right)
                         ui.vertical(|ui| {
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.num_points)
-                                    .hint_text("Points")
-                                    .desired_width(80.0),
+                            ui.add_sized(
+                                [80.0, 0.0],
+                                egui::DragValue::new(&mut self.num_points)
+                                    .range(0..=101)
+                                    .speed(1.0),
                             );
                             ui.label("Points");
 
@@ -176,11 +244,37 @@ impl eframe::App for NanoVNASaverApp {
 
                         ui.add_space(4.0);
 
-                        ui.add(
-                            egui::TextEdit::singleline(&mut self.if_bandwidth)
-                                .hint_text("IF Bandwidth")
-                                .desired_width(150.0),
+                        ui.add_sized(
+                            [150.0, 0.0],
+                            egui::DragValue::new(&mut self.if_bandwidth)
+                                .range(0..=100)
+                                .speed(1.0),
                         );
+                        ui.label("IF Bandwidth");
+                    });
+                });
+
+                ui.add_space(8.0);
+
+                // Time field
+                ui.group(|ui| {
+                    ui.vertical(|ui| {
+                        ui.add_sized(
+                            [80.0, 0.0],
+                            egui::DragValue::new(&mut self.num_sweeps)
+                                .range(0..=2147483647) //max for i32 since that's what the NanoVNA accepts
+                                .speed(1.0),
+                        );
+                        ui.label("Num Sweeps");
+                        ui.add_space(4.0);
+
+                        ui.add_sized(
+                            [80.0, 0.0],
+                            egui::DragValue::new(&mut self.time)
+                                .range(0..=2147483647)
+                                .speed(1.0),
+                        );
+                        ui.label("Time (s)");
                     });
                 });
             });
