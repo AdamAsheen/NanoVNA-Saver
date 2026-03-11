@@ -1,5 +1,7 @@
 use crate::{RunConfig, run};
 use eframe::egui;
+use polars::prelude::{CsvWriter, SerWriter};
+use std::fs::File;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
@@ -227,11 +229,26 @@ impl eframe::App for NanoVNASaverApp {
                             self.is_running = true;
 
                             thread::spawn(move || {
-                                let result = run(config).map(|sweep| {
-                                    format!(
-                                        "Sweep complete. Bytes: {}, Elapsed: {:.2}s",
-                                        sweep.total_bytes, sweep.elapsed_seconds
-                                    )
+                                let result = run(config).and_then(|sweep| {
+                                    let output_path = std::env::current_dir()
+                                        .map_err(|e| format!("Failed to get current directory: {e}"))?
+                                        .join("output.csv");
+
+                                    let mut df = sweep.dataframe;
+                                    let mut file = File::create(&output_path)
+                                        .map_err(|e| format!("Failed to create CSV file: {e}"))?;
+
+                                    CsvWriter::new(&mut file)
+                                        .include_header(true)
+                                        .finish(&mut df)
+                                        .map_err(|e| format!("Failed to write CSV: {e}"))?;
+
+                                    Ok(format!(
+                                        "Sweep complete. Bytes: {}, Elapsed: {:.2}s\nResults file: {}",
+                                        sweep.total_bytes,
+                                        sweep.elapsed_seconds,
+                                        output_path.display()
+                                    ))
                                 });
                                 let _ = tx.send(result);
                             });
