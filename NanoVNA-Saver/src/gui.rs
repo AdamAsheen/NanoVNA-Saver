@@ -27,7 +27,7 @@ fn set_gui_row_sender(sender: Option<Sender<String>>) {
 pub struct NanoVNASaverApp {
     terminal: String,
     available_ports: Vec<String>,
-    selected_port: Option<String>,
+    selected_ports: Vec<String>,
     start_freq: u64,
     end_freq: u64,
     num_points: usize,
@@ -47,7 +47,7 @@ impl Default for NanoVNASaverApp {
         let mut app = Self {
             terminal: String::new(),
             available_ports: Vec::new(),
-            selected_port: None,
+            selected_ports: Vec::new(),
             start_freq: 50_000,
             end_freq: 900_000_000,
             num_points: 101,
@@ -69,16 +69,8 @@ impl Default for NanoVNASaverApp {
 impl NanoVNASaverApp {
     fn refresh_ports(&mut self) {
         self.available_ports = detect_nanovna_port_names().unwrap_or_default();
-
-        if let Some(selected) = &self.selected_port
-            && !self.available_ports.iter().any(|port| port == selected)
-        {
-            self.selected_port = None;
-        }
-
-        if self.selected_port.is_none() {
-            self.selected_port = self.available_ports.first().cloned();
-        }
+        self.selected_ports
+            .retain(|selected| self.available_ports.iter().any(|port| port == selected));
     }
 
     fn validation_messages(&self) -> Vec<String> {
@@ -298,26 +290,64 @@ impl eframe::App for NanoVNASaverApp {
                     ui.set_width(240.0);
                     ui.set_min_height(77.0);
 
-                    egui::ComboBox::from_label("")
-                        .selected_text(
-                            self.selected_port
-                                .as_deref()
-                                .unwrap_or("No COM ports found"),
-                        )
-                        .show_ui(ui, |ui| {
-                            for port in &self.available_ports {
-                                ui.selectable_value(
-                                    &mut self.selected_port,
-                                    Some(port.clone()),
-                                    port,
-                                );
-                            }
+                    ui.horizontal(|ui| {
+                        ui.vertical(|ui| {
+                            let selected_text = if self.selected_ports.is_empty() {
+                                "Select COM ports".to_string()
+                            } else {
+                                format!("{} selected", self.selected_ports.len())
+                            };
+
+                            egui::ComboBox::from_id_salt("serial_port_selector")
+                                .selected_text(selected_text)
+                                .width(120.0)
+                                .show_ui(ui, |ui| {
+                                    if self.available_ports.is_empty() {
+                                        ui.label("No COM ports found");
+                                    } else {
+                                        for port in &self.available_ports {
+                                            let mut is_selected = self.selected_ports.contains(port);
+                                            if ui.checkbox(&mut is_selected, port).changed() {
+                                                if is_selected {
+                                                    self.selected_ports.push(port.clone());
+                                                    self.selected_ports.sort();
+                                                    self.selected_ports.dedup();
+                                                } else {
+                                                    self.selected_ports.retain(|selected| selected != port);
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
                         });
 
-                    ui.add_space(4.0);
-                    if ui.button("Refresh").clicked() {
-                        self.refresh_ports();
-                    }
+                        ui.add_space(8.0);
+
+                        ui.allocate_ui_with_layout(
+                            egui::vec2(100.0, 77.0),
+                            egui::Layout::top_down(egui::Align::Min),
+                            |ui| {
+                                ui.label("Selected");
+
+                                egui::ScrollArea::vertical().max_height(34.0).show(ui, |ui| {
+                                    if self.selected_ports.is_empty() {
+                                        ui.label("None");
+                                    } else {
+                                        for port in &self.selected_ports {
+                                            ui.label(port);
+                                        }
+                                    }
+                                });
+
+                                ui.add_space(4.0);
+                                ui.with_layout(egui::Layout::bottom_up(egui::Align::Max), |ui| {
+                                    if ui.button("Refresh").clicked() {
+                                        self.refresh_ports();
+                                    }
+                                });
+                            },
+                        );
+                    });
                 });
 
                 ui.add_space(8.0);
@@ -360,7 +390,7 @@ impl eframe::App for NanoVNASaverApp {
 
                             ui.add_space(4.0);
 
-                            egui::ComboBox::from_label("")
+                            egui::ComboBox::from_id_salt("num_ports_selector")
                                 .selected_text(self.num_ports.to_string())
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(&mut self.num_ports, 1, "1");
