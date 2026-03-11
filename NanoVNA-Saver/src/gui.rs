@@ -38,6 +38,7 @@ pub struct NanoVNASaverApp {
     time: u64,
     num_sweeps: usize,
     is_running: bool,
+    terminal_panel_width: f32,
     log_rx: Option<Receiver<String>>,
     run_rx: Option<Receiver<Result<String, String>>>,
 }
@@ -57,6 +58,7 @@ impl Default for NanoVNASaverApp {
             time: 0,
             num_sweeps: 1,
             is_running: false,
+            terminal_panel_width: 0.0,
             log_rx: None,
             run_rx: None,
         };
@@ -135,13 +137,22 @@ impl eframe::App for NanoVNASaverApp {
 
         let validation_errors = self.validation_messages();
 
-        // Calculate 1/3 of window width for results
-        let window_width = ctx.screen_rect().width();
-        let terminal_width = window_width / 3.0;
+        let max_terminal_width = (ctx.screen_rect().width() * 0.8).max(260.0);
 
         // Right side - results
-        egui::SidePanel::right("Terminal_panel")
-            .exact_width(terminal_width)
+        let initial_terminal_width = (ctx.screen_rect().width() / 3.0).clamp(260.0, max_terminal_width);
+
+        let default_terminal_width = if self.terminal_panel_width > 0.0 {
+            self.terminal_panel_width
+        } else {
+            initial_terminal_width
+        };
+
+        let terminal_response = egui::SidePanel::right("Terminal_panel")
+            .resizable(true)
+            .default_width(default_terminal_width)
+            .min_width(260.0)
+            .max_width(max_terminal_width)
             .frame(
                 egui::Frame::none()
                     .fill(egui::Color32::from_rgb(12, 12, 12))
@@ -165,6 +176,8 @@ impl eframe::App for NanoVNASaverApp {
                         );
                     });
             });
+
+                    self.terminal_panel_width = terminal_response.response.rect.width();
 
         // Left side - main content
         egui::CentralPanel::default().show(ctx, |ui| {
