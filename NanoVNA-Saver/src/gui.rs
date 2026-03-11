@@ -1,4 +1,7 @@
+use crate::{RunConfig, run};
 use eframe::egui;
+use std::sync::mpsc::{self, Receiver};
+use std::thread;
 use tokio_serial::available_ports;
 
 pub struct NanoVNASaverApp {
@@ -14,6 +17,7 @@ pub struct NanoVNASaverApp {
     time: u64,
     num_sweeps: usize,
     is_running: bool,
+    run_rx: Option<Receiver<Result<String, String>>>,
 }
 
 impl Default for NanoVNASaverApp {
@@ -31,6 +35,7 @@ impl Default for NanoVNASaverApp {
             time: 0,
             num_sweeps: 1,
             is_running: false,
+            run_rx: None,
         };
         app.refresh_ports();
         app
@@ -75,6 +80,25 @@ impl NanoVNASaverApp {
 
 impl eframe::App for NanoVNASaverApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(rx) = &self.run_rx
+            && let Ok(result) = rx.try_recv()
+        {
+            self.is_running = false;
+            self.run_rx = None;
+
+            if !self.terminal.is_empty() {
+                self.terminal.push('\n');
+            }
+
+            match result {
+                Ok(message) => self.terminal.push_str(&message),
+                Err(err) => {
+                    self.terminal.push_str("Error: ");
+                    self.terminal.push_str(&err);
+                }
+            }
+        }
+
         let validation_errors = self.validation_messages();
 
         // Calculate 1/3 of window width for results
@@ -135,7 +159,32 @@ impl eframe::App for NanoVNASaverApp {
                         .clicked()
                     {
                         if validation_errors.is_empty() {
+                            let config = RunConfig {
+                                num_sweeps: 1,
+                                vna_number: 1,
+                                start_freq: self.start_freq,
+                                end_freq: self.end_freq,
+                                num_points: self.num_points,
+                                num_ports: 1,
+                                if_bandwidth: None,
+                                time: None,
+                                label: self.label.clone(),
+                                row_callback: None,
+                            };
+
+                            let (tx, rx) = mpsc::channel();
+                            self.run_rx = Some(rx);
                             self.is_running = true;
+
+                            thread::spawn(move || {
+                                let result = run(config).map(|sweep| {
+                                    format!(
+                                        "Sweep complete. Bytes: {}, Elapsed: {:.2}s",
+                                        sweep.total_bytes, sweep.elapsed_seconds
+                                    )
+                                });
+                                let _ = tx.send(result);
+                            });
                         } else {
                             for error in &validation_errors {
                                 if !self.terminal.is_empty() {
