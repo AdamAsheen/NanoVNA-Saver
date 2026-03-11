@@ -84,11 +84,11 @@ impl NanoVNASaverApp {
             errors.push("Start frequency must be 900 MHz or less".to_string());
         }
 
-        if self.end_freq >  900_000_000 {
+        if self.end_freq > 900_000_000 {
             errors.push("End frequency must be 900 MHz or less".to_string());
         }
 
-        if self.end_freq <  50_000 {
+        if self.end_freq < 50_000 {
             errors.push("End frequency must be 50 kHz or more".to_string());
         }
 
@@ -145,7 +145,8 @@ impl eframe::App for NanoVNASaverApp {
         let max_terminal_width = (ctx.screen_rect().width() * 0.8).max(260.0);
 
         // Right side - results
-        let initial_terminal_width = (ctx.screen_rect().width() / 3.0).clamp(260.0, max_terminal_width);
+        let initial_terminal_width =
+            (ctx.screen_rect().width() / 3.0).clamp(260.0, max_terminal_width);
 
         let default_terminal_width = if self.terminal_panel_width > 0.0 {
             self.terminal_panel_width
@@ -182,7 +183,7 @@ impl eframe::App for NanoVNASaverApp {
                     });
             });
 
-                    self.terminal_panel_width = terminal_response.response.rect.width();
+        self.terminal_panel_width = terminal_response.response.rect.width();
 
         // Left side - main content
         egui::CentralPanel::default().show(ctx, |ui| {
