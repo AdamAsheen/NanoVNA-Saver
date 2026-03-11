@@ -335,7 +335,7 @@ impl eframe::App for NanoVNASaverApp {
                             ui.add_sized(
                                 [120.0, 0.0],
                                 egui::DragValue::new(&mut self.start_freq)
-                                    .range(0..=u64::MAX)
+                                    .range(50_000..=900_000_000)
                                     .speed(1.0),
                             );
                             ui.label("Start Freq (Hz)");
@@ -345,7 +345,7 @@ impl eframe::App for NanoVNASaverApp {
                             ui.add_sized(
                                 [120.0, 0.0],
                                 egui::DragValue::new(&mut self.end_freq)
-                                    .range(0..=u64::MAX)
+                                    .range(50_000..=900_000_000)
                                     .speed(1.0),
                             );
                             ui.label("End Freq (Hz)");
