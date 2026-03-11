@@ -1,11 +1,10 @@
-use crate::{RunConfig, run};
+use crate::{RunConfig, detect_nanovna_port_names, run};
 use eframe::egui;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
-use tokio_serial::available_ports;
 
 static GUI_ROW_TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
 
@@ -69,9 +68,7 @@ impl Default for NanoVNASaverApp {
 
 impl NanoVNASaverApp {
     fn refresh_ports(&mut self) {
-        self.available_ports = available_ports()
-            .map(|ports| ports.into_iter().map(|p| p.port_name).collect())
-            .unwrap_or_default();
+        self.available_ports = detect_nanovna_port_names().unwrap_or_default();
 
         if let Some(selected) = &self.selected_port
             && !self.available_ports.iter().any(|port| port == selected)

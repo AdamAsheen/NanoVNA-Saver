@@ -1,4 +1,5 @@
 use std::thread;
+use tokio_serial::SerialPortInfo;
 use tokio_serial::SerialPortType;
 
 pub mod gui;
@@ -19,7 +20,7 @@ pub struct RunConfig {
     pub row_callback: Option<fn(&str)>,
 }
 
-pub fn run(config: RunConfig) -> Result<SweepResult, String> {
+fn get_filtered_nanovna_ports() -> Result<Vec<SerialPortInfo>, String> {
     let ports = tokio_serial::available_ports().map_err(|_| "Failed to enumerate serial ports")?;
 
     let filtered_ports: Vec<_> = ports
@@ -32,6 +33,19 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
             }
         })
         .collect();
+
+    Ok(filtered_ports)
+}
+
+pub fn detect_nanovna_port_names() -> Result<Vec<String>, String> {
+    Ok(get_filtered_nanovna_ports()?
+        .into_iter()
+        .map(|p| p.port_name)
+        .collect())
+}
+
+pub fn run(config: RunConfig) -> Result<SweepResult, String> {
+    let filtered_ports = get_filtered_nanovna_ports()?;
 
     if filtered_ports.is_empty() {
         return Err("No NanoVNA devices detected".into());
