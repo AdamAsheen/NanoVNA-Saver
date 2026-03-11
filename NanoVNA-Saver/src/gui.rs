@@ -91,6 +91,22 @@ impl NanoVNASaverApp {
             errors.push("Start frequency must be less than End frequency".to_string());
         }
 
+        if self.start_freq > 900_000_000 {
+            errors.push("Start frequency must be 900 MHz or less".to_string());
+        }
+
+        if self.end_freq >  900_000_000 {
+            errors.push("End frequency must be 900 MHz or less".to_string());
+        }
+
+        if self.end_freq <  50_000 {
+            errors.push("End frequency must be 50 kHz or more".to_string());
+        }
+
+        if self.start_freq < 50_000 {
+            errors.push("Start frequency must be 50 kHz or more".to_string());
+        }
+
         if self.num_points > 101 {
             errors.push("Points must be 101 or less".to_string());
         }
