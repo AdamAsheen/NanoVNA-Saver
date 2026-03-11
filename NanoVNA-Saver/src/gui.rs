@@ -171,13 +171,15 @@ impl eframe::App for NanoVNASaverApp {
                             };
                             let label = self.label.trim().to_string();
 
+                            let num_ports = if self.num_ports == 2 { 2 } else { 1 };
+
                             let config = RunConfig {
                                 num_sweeps,
                                 vna_number: 1,
                                 start_freq: self.start_freq,
                                 end_freq: self.end_freq,
                                 num_points: self.num_points,
-                                num_ports: 1,
+                                num_ports,
                                 if_bandwidth,
                                 time,
                                 label,
