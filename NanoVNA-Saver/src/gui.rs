@@ -295,7 +295,8 @@ impl eframe::App for NanoVNASaverApp {
             ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                 // Serial Port Configuration
                 ui.group(|ui| {
-                    ui.set_width(180.0);
+                    ui.set_width(240.0);
+                    ui.set_min_height(77.0);
 
                     egui::ComboBox::from_label("")
                         .selected_text(
@@ -314,12 +315,9 @@ impl eframe::App for NanoVNASaverApp {
                         });
 
                     ui.add_space(4.0);
-                    let detection_status = if self.available_ports.is_empty() {
-                        "NanoVNA not detected"
-                    } else {
-                        "NanoVNA detected"
-                    };
-                    ui.label(detection_status);
+                    if ui.button("Refresh").clicked() {
+                        self.refresh_ports();
+                    }
                 });
 
                 ui.add_space(8.0);
