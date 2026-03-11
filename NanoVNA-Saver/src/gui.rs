@@ -159,15 +159,21 @@ impl eframe::App for NanoVNASaverApp {
                         .clicked()
                     {
                         if validation_errors.is_empty() {
+                            let (num_sweeps, time) = if self.time > 0 {
+                                (0, Some(self.time))
+                            } else {
+                                (self.num_sweeps, None)
+                            };
+
                             let config = RunConfig {
-                                num_sweeps: 1,
+                                num_sweeps,
                                 vna_number: 1,
                                 start_freq: self.start_freq,
                                 end_freq: self.end_freq,
                                 num_points: self.num_points,
                                 num_ports: 1,
                                 if_bandwidth: None,
-                                time: None,
+                                time,
                                 label: self.label.clone(),
                                 row_callback: None,
                             };
