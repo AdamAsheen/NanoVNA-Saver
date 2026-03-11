@@ -169,11 +169,7 @@ impl eframe::App for NanoVNASaverApp {
                             } else {
                                 None
                             };
-                            let _label = if self.label.trim().is_empty() {
-                                None
-                            } else {
-                                Some(self.label.trim().to_string())
-                            };
+                            let label = self.label.trim().to_string();
 
                             let config = RunConfig {
                                 num_sweeps,
@@ -184,7 +180,7 @@ impl eframe::App for NanoVNASaverApp {
                                 num_ports: 1,
                                 if_bandwidth,
                                 time,
-                                label:self.label.trim().to_string(),
+                                label,
                                 row_callback: None,
                             };
 
