@@ -164,6 +164,11 @@ impl eframe::App for NanoVNASaverApp {
                             } else {
                                 (self.num_sweeps, None)
                             };
+                            let if_bandwidth = if self.if_bandwidth > 0 {
+                                Some(self.if_bandwidth)
+                            } else {
+                                None
+                            };
 
                             let config = RunConfig {
                                 num_sweeps,
@@ -172,7 +177,7 @@ impl eframe::App for NanoVNASaverApp {
                                 end_freq: self.end_freq,
                                 num_points: self.num_points,
                                 num_ports: 1,
-                                if_bandwidth: None,
+                                if_bandwidth,
                                 time,
                                 label: self.label.clone(),
                                 row_callback: None,
