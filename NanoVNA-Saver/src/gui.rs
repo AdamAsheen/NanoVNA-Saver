@@ -1,8 +1,27 @@
 use crate::{RunConfig, run};
 use eframe::egui;
-use std::sync::mpsc::{self, Receiver};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use tokio_serial::available_ports;
+
+static GUI_ROW_TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
+
+fn gui_row_callback(row: &str) {
+    if let Some(lock) = GUI_ROW_TX.get()
+        && let Ok(guard) = lock.lock()
+        && let Some(tx) = guard.as_ref()
+    {
+        let _ = tx.send(row.to_string());
+    }
+}
+
+fn set_gui_row_sender(sender: Option<Sender<String>>) {
+    let lock = GUI_ROW_TX.get_or_init(|| Mutex::new(None));
+    if let Ok(mut guard) = lock.lock() {
+        *guard = sender;
+    }
+}
 
 pub struct NanoVNASaverApp {
     terminal: String,
@@ -17,6 +36,7 @@ pub struct NanoVNASaverApp {
     time: u64,
     num_sweeps: usize,
     is_running: bool,
+    log_rx: Option<Receiver<String>>,
     run_rx: Option<Receiver<Result<String, String>>>,
 }
 
@@ -35,6 +55,7 @@ impl Default for NanoVNASaverApp {
             time: 0,
             num_sweeps: 1,
             is_running: false,
+            log_rx: None,
             run_rx: None,
         };
         app.refresh_ports();
@@ -80,11 +101,22 @@ impl NanoVNASaverApp {
 
 impl eframe::App for NanoVNASaverApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(rx) = &self.log_rx {
+            while let Ok(row) = rx.try_recv() {
+                if !self.terminal.is_empty() {
+                    self.terminal.push('\n');
+                }
+                self.terminal.push_str(&row);
+            }
+        }
+
         if let Some(rx) = &self.run_rx
             && let Ok(result) = rx.try_recv()
         {
             self.is_running = false;
             self.run_rx = None;
+            self.log_rx = None;
+            set_gui_row_sender(None);
 
             if !self.terminal.is_empty() {
                 self.terminal.push('\n');
@@ -183,8 +215,12 @@ impl eframe::App for NanoVNASaverApp {
                                 if_bandwidth,
                                 time,
                                 label,
-                                row_callback: None,
+                                row_callback: Some(gui_row_callback),
                             };
+
+                            let (log_tx, log_rx) = mpsc::channel();
+                            set_gui_row_sender(Some(log_tx));
+                            self.log_rx = Some(log_rx);
 
                             let (tx, rx) = mpsc::channel();
                             self.run_rx = Some(rx);
