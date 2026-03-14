@@ -138,6 +138,7 @@ impl eframe::App for NanoVNASaverApp {
                 Ok(dataframe, message) => {
                     self.terminal.push_str(&message);
                     self.dataframe = Some(dataframe);
+                }
                 Err(err) => {
                     self.terminal.push_str("Error: ");
                     self.terminal.push_str(&err);
