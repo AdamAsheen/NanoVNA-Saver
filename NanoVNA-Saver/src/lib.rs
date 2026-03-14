@@ -2,6 +2,7 @@ use std::thread;
 use tokio_serial::SerialPortInfo;
 use tokio_serial::SerialPortType;
 
+pub mod graph;
 pub mod gui;
 pub mod sweep;
 

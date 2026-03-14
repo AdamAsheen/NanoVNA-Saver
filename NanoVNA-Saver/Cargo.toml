@@ -11,6 +11,7 @@ polars = { version = "0.36", default-features = false, features = ["fmt", "lazy"
 hashbrown = { version = "0.14.5", features = ["raw"] }
 clap = { version = "4", features = ["derive"]}
 eframe = "0.29"
+egui_plot = "0.29"
 
 
 [dev-dependencies]
