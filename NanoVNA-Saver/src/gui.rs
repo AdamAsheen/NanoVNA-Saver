@@ -135,7 +135,7 @@ impl eframe::App for NanoVNASaverApp {
             }
 
             match result {
-                Ok(dataframe, message) => {
+                Ok((dataframe, message)) => {
                     self.terminal.push_str(&message);
                     self.dataframe = Some(dataframe);
                 }
@@ -459,7 +459,44 @@ impl eframe::App for NanoVNASaverApp {
             });
 
             ui.add_space(8.0);
-            ui.label("Main controls will go here");
+            ui.separator();
+
+            if let Some(df) = &self.dataframe {
+                let available = ui.available_size();
+                let plot_height = (available.y - 16.0) / 2.0;
+                let plot_width = (available.x - 16.0) / 2.0;
+
+                let channels = df.column("channel").unwrap().str().unwrap().into_iter().collect::<Vec<_>>();
+                let freqs = df.column("frequency_hz").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
+                let reals = df.column("real").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
+                let imags = df.column("imag").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
+
+                let mut s11: Vec<[f64; 3]> = Vec::new();
+                let mut s21: Vec<[f64; 3]> = Vec::new();
+
+                for i in 0..channels.len(){
+                    let(Some(ch), Some(freq), Some(real), Some(imag)) = (channels[i], freqs[i], reals[i], imags[i]) else {continue;};
+                    match ch {
+                        "S11" => s11.push([freq,real,imag]),
+                        "S21" => s21.push([freq,real,imag]),
+                        &_ => {}
+                    }
+                }
+
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| { crate::graph::s11_log_mag(ui, &s11, plot_height, plot_width); });
+                    ui.add_space(8.0);
+                    ui.vertical(|ui| { crate::graph::s11_smith(ui, &s11, plot_height, plot_width); });
+                });
+
+                ui.add_space(8.0);
+
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| { crate::graph::s21_log_mag(ui, &s21, plot_height, plot_width); });
+                    ui.add_space(8.0);
+                    ui.vertical(|ui| { crate::graph::s21_phase(ui, &s21, plot_height, plot_width); });
+                });
+            }
         });
     }
 }
