@@ -5,6 +5,7 @@ use std::fs::File;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
+use polars::frame::DataFrame;
 
 static GUI_ROW_TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
 
@@ -39,7 +40,8 @@ pub struct NanoVNASaverApp {
     is_running: bool,
     terminal_panel_width: f32,
     log_rx: Option<Receiver<String>>,
-    run_rx: Option<Receiver<Result<String, String>>>,
+    run_rx: Option<Receiver<Result<(DataFrame, String), String>>>,
+    dataframe: Option<DataFrame>,
 }
 
 impl Default for NanoVNASaverApp {
@@ -60,6 +62,7 @@ impl Default for NanoVNASaverApp {
             terminal_panel_width: 0.0,
             log_rx: None,
             run_rx: None,
+            dataframe: None,
         };
         app.refresh_ports();
         app
