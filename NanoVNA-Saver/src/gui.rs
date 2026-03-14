@@ -1,11 +1,11 @@
 use crate::{RunConfig, detect_nanovna_port_names, run};
 use eframe::egui;
+use polars::frame::DataFrame;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
-use polars::frame::DataFrame;
 
 static GUI_ROW_TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
 
@@ -135,7 +135,9 @@ impl eframe::App for NanoVNASaverApp {
             }
 
             match result {
-                Ok(message) => self.terminal.push_str(&message),
+                Ok(dataframe, message) => {
+                    self.terminal.push_str(&message);
+                    self.dataframe = Some(dataframe);
                 Err(err) => {
                     self.terminal.push_str("Error: ");
                     self.terminal.push_str(&err);
@@ -257,6 +259,7 @@ impl eframe::App for NanoVNASaverApp {
                                         .join("output.csv");
 
                                     let mut df = sweep.dataframe;
+                                    let df_clone = df.clone();
                                     let mut file = File::create(&output_path)
                                         .map_err(|e| format!("Failed to create CSV file: {e}"))?;
 
@@ -265,12 +268,12 @@ impl eframe::App for NanoVNASaverApp {
                                         .finish(&mut df)
                                         .map_err(|e| format!("Failed to write CSV: {e}"))?;
 
-                                    Ok(format!(
+                                    Ok((df_clone, format!(
                                         "Sweep complete. Bytes: {}, Elapsed: {:.2}s\nResults file: {}",
                                         sweep.total_bytes,
                                         sweep.elapsed_seconds,
                                         output_path.display()
-                                    ))
+                                    )))
                                 });
                                 let _ = tx.send(result);
                             });
