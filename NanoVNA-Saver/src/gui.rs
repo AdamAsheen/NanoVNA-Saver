@@ -284,3 +284,34 @@ impl eframe::App for NanoVNASaverApp {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validation_messages_normal() {
+        let mock = NanoVNASaverApp::default();
+
+        let expected: Vec::<String> = Vec::new();
+
+        assert_eq!(mock.validation_messages(), expected);
+    }
+
+    #[test]
+    fn test_validation_messages_all() {
+        let mut mock = NanoVNASaverApp::default();
+
+        mock.end_freq = 10_000;
+        mock.num_points = 10_000;
+        mock.time = 0;
+        mock.num_sweeps = 0;
+
+        let mut expected: Vec::<String> = Vec::new();
+        expected.push("Start frequency must be less than End frequency".to_string());
+        expected.push("Points must be 101 or less".to_string());
+        expected.push("Either Time or Num Sweeps must be set, but not both".to_string());
+
+        assert_eq!(mock.validation_messages(), expected);
+    }
+}
