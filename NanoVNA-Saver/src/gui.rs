@@ -214,8 +214,7 @@ impl eframe::App for NanoVNASaverApp {
                         if ui
                             .add(egui::Button::new(strong_text).fill(button_color))
                             .clicked()
-                        {
-                            if let Some(flag) = &self.stop_flag {
+                            && let Some(flag) = &self.stop_flag {
                                 let was_stopped = flag.swap(true, Ordering::Relaxed);
                                 if !was_stopped {
                                     if !self.terminal.is_empty() {
@@ -224,7 +223,6 @@ impl eframe::App for NanoVNASaverApp {
                                     self.terminal.push_str("Stop requested. Interrupting active sweep...");
                                 }
                             }
-                        }
                     } else if ui
                         .add(egui::Button::new(strong_text).fill(button_color))
                         .clicked()

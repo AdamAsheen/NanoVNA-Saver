@@ -639,8 +639,7 @@ mod tests {
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
         let stop_flag = Arc::new(AtomicBool::new(false));
-        let _ = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101, &stop_flag)
-            .unwrap();
+        let _ = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101, &stop_flag).unwrap();
     }
 
     #[test]

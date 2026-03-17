@@ -1,6 +1,6 @@
-use std::thread;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::thread;
 use tokio_serial::SerialPortInfo;
 use tokio_serial::SerialPortType;
 
