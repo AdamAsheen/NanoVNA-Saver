@@ -302,33 +302,35 @@ mod tests {
         assert_eq!(default.num_ports, 2);
         assert_eq!(default.label, String::new());
         assert_eq!(default.if_bandwidth, 0);
-        assert_eq!(default.time,0);
+        assert_eq!(default.time, 0);
         assert_eq!(default.num_sweeps, 1);
-        assert_eq!(default.is_running, false);
+        assert!(!default.is_running);
     }
 
     #[test]
     fn test_validation_messages_normal() {
         let mock = NanoVNASaverApp::default();
 
-        let expected: Vec::<String> = Vec::new();
+        let expected: Vec<String> = Vec::new();
 
         assert_eq!(mock.validation_messages(), expected);
     }
 
     #[test]
     fn test_validation_messages_all() {
-        let mut mock = NanoVNASaverApp::default();
+        let mock = NanoVNASaverApp {
+            end_freq: 10_000,
+            num_points: 10_000,
+            time: 0,
+            num_sweeps: 0,
+            ..Default::default()
+        };
 
-        mock.end_freq = 10_000;
-        mock.num_points = 10_000;
-        mock.time = 0;
-        mock.num_sweeps = 0;
-
-        let mut expected: Vec::<String> = Vec::new();
-        expected.push("Start frequency must be less than End frequency".to_string());
-        expected.push("Points must be 101 or less".to_string());
-        expected.push("Either Time or Num Sweeps must be set, but not both".to_string());
+        let expected: Vec<String> = vec![
+            "Start frequency must be less than End frequency".to_string(),
+            "Points must be 101 or less".to_string(),
+            "Either Time or Num Sweeps must be set, but not both".to_string(),
+        ];
 
         assert_eq!(mock.validation_messages(), expected);
     }
