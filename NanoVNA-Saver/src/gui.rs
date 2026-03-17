@@ -235,7 +235,14 @@ impl eframe::App for NanoVNASaverApp {
                             } else {
                                 None
                             };
-                            let label = self.label.trim().to_string();
+                            let label = {
+                                let trimmed = self.label.trim();
+                                if trimmed.is_empty() {
+                                    "default_label".to_string()
+                                } else {
+                                    trimmed.to_string()
+                                }
+                            };
 
                             let num_ports = if self.num_ports == 2 { 2 } else { 1 };
 
