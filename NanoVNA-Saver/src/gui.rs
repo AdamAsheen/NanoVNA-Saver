@@ -2,6 +2,8 @@ use crate::{RunConfig, detect_nanovna_port_names, run};
 use eframe::egui;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
@@ -40,6 +42,7 @@ pub struct NanoVNASaverApp {
     terminal_panel_width: f32,
     log_rx: Option<Receiver<String>>,
     run_rx: Option<Receiver<Result<String, String>>>,
+    stop_flag: Option<Arc<AtomicBool>>,
 }
 
 impl Default for NanoVNASaverApp {
@@ -60,6 +63,7 @@ impl Default for NanoVNASaverApp {
             terminal_panel_width: 0.0,
             log_rx: None,
             run_rx: None,
+            stop_flag: None,
         };
         app.refresh_ports();
         app
@@ -125,6 +129,7 @@ impl eframe::App for NanoVNASaverApp {
             self.is_running = false;
             self.run_rx = None;
             self.log_rx = None;
+            self.stop_flag = None;
             set_gui_row_sender(None);
 
             if !self.terminal.is_empty() {
@@ -205,7 +210,15 @@ impl eframe::App for NanoVNASaverApp {
                             .add(egui::Button::new(strong_text).fill(button_color))
                             .clicked()
                         {
-                            self.is_running = false;
+                            if let Some(flag) = &self.stop_flag {
+                                let was_stopped = flag.swap(true, Ordering::Relaxed);
+                                if !was_stopped {
+                                    if !self.terminal.is_empty() {
+                                        self.terminal.push('\n');
+                                    }
+                                    self.terminal.push_str("Stop requested. Interrupting active sweep...");
+                                }
+                            }
                         }
                     } else if ui
                         .add(egui::Button::new(strong_text).fill(button_color))
@@ -237,6 +250,11 @@ impl eframe::App for NanoVNASaverApp {
                                 time,
                                 label,
                                 row_callback: Some(gui_row_callback),
+                                stop_flag: {
+                                    let flag = Arc::new(AtomicBool::new(false));
+                                    self.stop_flag = Some(Arc::clone(&flag));
+                                    flag
+                                },
                             };
 
                             let (log_tx, log_rx) = mpsc::channel();

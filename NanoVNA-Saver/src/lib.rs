@@ -1,4 +1,6 @@
 use std::thread;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use tokio_serial::SerialPortInfo;
 use tokio_serial::SerialPortType;
 
@@ -18,6 +20,7 @@ pub struct RunConfig {
     pub time: Option<u64>,
     pub label: String,
     pub row_callback: Option<fn(&str)>,
+    pub stop_flag: Arc<AtomicBool>,
 }
 
 fn get_filtered_nanovna_ports() -> Result<Vec<SerialPortInfo>, String> {
@@ -70,6 +73,7 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
             time: config.time,
             label: config.label.clone(),
             row_callback: config.row_callback,
+            stop_flag: Arc::clone(&config.stop_flag),
         };
 
         handles.push(thread::spawn(move || sweep::run_on_port(params)));
@@ -81,8 +85,8 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
     for h in handles {
         let result = h
             .join()
-            .map_err(|_| "Thread panicked")?
-            .map_err(|_| "Sweep failed")?;
+            .map_err(|_| "Thread panicked".to_string())?
+            .map_err(|e| format!("Sweep failed: {e}"))?;
 
         total_bytes += result.total_bytes;
         total_time += result.elapsed_seconds;

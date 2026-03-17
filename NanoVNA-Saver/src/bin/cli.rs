@@ -2,6 +2,8 @@ use clap::Parser;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use nanovna_saver::{RunConfig, run};
 
@@ -78,6 +80,7 @@ fn run_cli(args: CliArgs) {
         time: args.time,
         label,
         row_callback: if args.no_print { None } else { Some(print_row) },
+        stop_flag: Arc::new(AtomicBool::new(false)),
     };
 
     let result = match run(config) {
