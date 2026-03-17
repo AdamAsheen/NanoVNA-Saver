@@ -1,7 +1,7 @@
 use crate::{RunConfig, detect_nanovna_port_names, run};
 use eframe::egui;
 use polars::prelude::{CsvWriter, SerWriter};
-use std::fs::File;
+use std::fs::{OpenOptions, create_dir_all};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,6 +24,22 @@ fn set_gui_row_sender(sender: Option<Sender<String>>) {
     let lock = GUI_ROW_TX.get_or_init(|| Mutex::new(None));
     if let Ok(mut guard) = lock.lock() {
         *guard = sender;
+    }
+}
+
+fn resolve_output_path(input: &str) -> PathBuf {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return std::env::current_dir()
+            .map(|dir| dir.join("output.csv"))
+            .unwrap_or_else(|_| PathBuf::from("output.csv"));
+    }
+
+    let path = PathBuf::from(trimmed);
+    if path.is_dir() || trimmed.ends_with('\\') || trimmed.ends_with('/') {
+        path.join("output.csv")
+    } else {
+        path
     }
 }
 
@@ -246,16 +262,7 @@ impl eframe::App for NanoVNASaverApp {
                                     trimmed.to_string()
                                 }
                             };
-                            let output_path = {
-                                let trimmed = self.save_path.trim();
-                                if trimmed.is_empty() {
-                                    std::env::current_dir()
-                                        .map(|dir| dir.join("output.csv"))
-                                        .unwrap_or_else(|_| PathBuf::from("output.csv"))
-                                } else {
-                                    PathBuf::from(trimmed)
-                                }
-                            };
+                            let output_path = resolve_output_path(&self.save_path);
 
                             let num_ports = if self.num_ports == 2 { 2 } else { 1 };
 
@@ -288,8 +295,36 @@ impl eframe::App for NanoVNASaverApp {
                             thread::spawn(move || {
                                 let result = run(config).and_then(|sweep| {
                                     let mut df = sweep.dataframe;
-                                    let mut file = File::create(&output_path)
-                                        .map_err(|e| format!("Failed to create CSV file: {e}"))?;
+
+                                    if let Some(parent) = output_path.parent()
+                                        && !parent.as_os_str().is_empty()
+                                    {
+                                        create_dir_all(parent).map_err(|e| {
+                                            format!(
+                                                "Failed to create output directory '{}': {e}",
+                                                parent.display()
+                                            )
+                                        })?;
+                                    }
+
+                                    let mut file = OpenOptions::new()
+                                        .create(true)
+                                        .write(true)
+                                        .truncate(true)
+                                        .open(&output_path)
+                                        .map_err(|e| {
+                                            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                                                format!(
+                                                    "Failed to create CSV file '{}': {e}. This path may be a protected location, a folder, or the file may be locked by another program.",
+                                                    output_path.display()
+                                                )
+                                            } else {
+                                                format!(
+                                                    "Failed to create CSV file '{}': {e}",
+                                                    output_path.display()
+                                                )
+                                            }
+                                        })?;
 
                                     CsvWriter::new(&mut file)
                                         .include_header(true)
