@@ -2,6 +2,7 @@ use crate::{RunConfig, detect_nanovna_port_names, run};
 use eframe::egui;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::File;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -34,6 +35,7 @@ pub struct NanoVNASaverApp {
     end_freq: u64,
     num_points: usize,
     num_ports: usize,
+    save_path: String,
     label: String,
     if_bandwidth: u32,
     time: u64,
@@ -55,6 +57,9 @@ impl Default for NanoVNASaverApp {
             end_freq: 900_000_000,
             num_points: 101,
             num_ports: 2,
+            save_path: std::env::current_dir()
+                .map(|dir| dir.join("output.csv").display().to_string())
+                .unwrap_or_else(|_| "output.csv".to_string()),
             label: String::new(),
             if_bandwidth: 0,
             time: 0,
@@ -243,6 +248,16 @@ impl eframe::App for NanoVNASaverApp {
                                     trimmed.to_string()
                                 }
                             };
+                            let output_path = {
+                                let trimmed = self.save_path.trim();
+                                if trimmed.is_empty() {
+                                    std::env::current_dir()
+                                        .map(|dir| dir.join("output.csv"))
+                                        .unwrap_or_else(|_| PathBuf::from("output.csv"))
+                                } else {
+                                    PathBuf::from(trimmed)
+                                }
+                            };
 
                             let num_ports = if self.num_ports == 2 { 2 } else { 1 };
 
@@ -274,10 +289,6 @@ impl eframe::App for NanoVNASaverApp {
 
                             thread::spawn(move || {
                                 let result = run(config).and_then(|sweep| {
-                                    let output_path = std::env::current_dir()
-                                        .map_err(|e| format!("Failed to get current directory: {e}"))?
-                                        .join("output.csv");
-
                                     let mut df = sweep.dataframe;
                                     let mut file = File::create(&output_path)
                                         .map_err(|e| format!("Failed to create CSV file: {e}"))?;
@@ -423,6 +434,21 @@ impl eframe::App for NanoVNASaverApp {
                                     ui.selectable_value(&mut self.num_ports, 2, "2");
                                 });
                             ui.label("Num Ports");
+                        });
+
+                        ui.add_space(8.0);
+
+                        ui.group(|ui| {
+                            ui.set_min_height(77.0);
+                            ui.vertical(|ui| {
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut self.save_path)
+                                        .hint_text("Save Path")
+                                        .desired_width(260.0),
+                                );
+                                ui.add_space(4.0);
+                                ui.label("Save Path");
+                            });
                         });
                     });
                 });
