@@ -10,6 +10,8 @@ use std::sync::{Mutex, OnceLock};
 use std::thread;
 
 static GUI_ROW_TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
+const MAX_TERMINAL_CHARS: usize = 200_000;
+const MAX_LOG_ROWS_PER_FRAME: usize = 500;
 
 fn gui_row_callback(row: &str) {
     if let Some(lock) = GUI_ROW_TX.get()
@@ -41,6 +43,35 @@ fn resolve_output_path(input: &str) -> PathBuf {
     } else {
         path
     }
+}
+
+fn trim_terminal_buffer(terminal: &mut String) {
+    if terminal.len() <= MAX_TERMINAL_CHARS {
+        return;
+    }
+
+    let mut cut_at = terminal.len() - MAX_TERMINAL_CHARS;
+    while cut_at < terminal.len() && !terminal.is_char_boundary(cut_at) {
+        cut_at += 1;
+    }
+
+    if cut_at < terminal.len()
+        && let Some(newline_offset) = terminal[cut_at..].find('\n')
+    {
+        cut_at += newline_offset + 1;
+    }
+
+    if cut_at > 0 {
+        terminal.drain(..cut_at);
+    }
+}
+
+fn append_terminal_line(terminal: &mut String, line: &str) {
+    if !terminal.is_empty() {
+        terminal.push('\n');
+    }
+    terminal.push_str(line);
+    trim_terminal_buffer(terminal);
 }
 
 pub struct NanoVNASaverApp {
@@ -136,11 +167,18 @@ impl NanoVNASaverApp {
 impl eframe::App for NanoVNASaverApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Some(rx) = &self.log_rx {
-            while let Ok(row) = rx.try_recv() {
-                if !self.terminal.is_empty() {
-                    self.terminal.push('\n');
-                }
-                self.terminal.push_str(&row);
+            let mut processed = 0usize;
+            while processed < MAX_LOG_ROWS_PER_FRAME {
+                let Ok(row) = rx.try_recv() else {
+                    break;
+                };
+                append_terminal_line(&mut self.terminal, &row);
+                processed += 1;
+            }
+
+            if processed == MAX_LOG_ROWS_PER_FRAME {
+                // Keep repainting while there is buffered log data to avoid UI stalls.
+                ctx.request_repaint();
             }
         }
 
@@ -153,16 +191,9 @@ impl eframe::App for NanoVNASaverApp {
             self.stop_flag = None;
             set_gui_row_sender(None);
 
-            if !self.terminal.is_empty() {
-                self.terminal.push('\n');
-            }
-
             match result {
-                Ok(message) => self.terminal.push_str(&message),
-                Err(err) => {
-                    self.terminal.push_str("Error: ");
-                    self.terminal.push_str(&err);
-                }
+                Ok(message) => append_terminal_line(&mut self.terminal, &message),
+                Err(err) => append_terminal_line(&mut self.terminal, &format!("Error: {err}")),
             }
         }
 
@@ -240,10 +271,10 @@ impl eframe::App for NanoVNASaverApp {
                             && let Some(flag) = &self.stop_flag {
                                 let was_stopped = flag.swap(true, Ordering::Relaxed);
                                 if !was_stopped {
-                                    if !self.terminal.is_empty() {
-                                        self.terminal.push('\n');
-                                    }
-                                    self.terminal.push_str("Stop requested. Interrupting active sweep...");
+                                    append_terminal_line(
+                                        &mut self.terminal,
+                                        "Stop requested. Interrupting active sweep...",
+                                    );
                                 }
                             }
                     } else if ui
@@ -349,11 +380,10 @@ impl eframe::App for NanoVNASaverApp {
                             });
                         } else {
                             for error in &validation_errors {
-                                if !self.terminal.is_empty() {
-                                    self.terminal.push('\n');
-                                }
-                                self.terminal.push_str("Error: ");
-                                self.terminal.push_str(error);
+                                append_terminal_line(
+                                    &mut self.terminal,
+                                    &format!("Error: {error}"),
+                                );
                             }
                         }
                     }
