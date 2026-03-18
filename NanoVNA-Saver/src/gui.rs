@@ -2,12 +2,17 @@ use crate::{RunConfig, detect_nanovna_port_names, run};
 use eframe::egui;
 use polars::frame::DataFrame;
 use polars::prelude::{CsvWriter, SerWriter};
-use std::fs::File;
+use std::fs::{OpenOptions, create_dir_all};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
 
 static GUI_ROW_TX: OnceLock<Mutex<Option<Sender<String>>>> = OnceLock::new();
+const MAX_TERMINAL_CHARS: usize = 200_000;
+const MAX_LOG_ROWS_PER_FRAME: usize = 500;
 
 fn gui_row_callback(row: &str) {
     if let Some(lock) = GUI_ROW_TX.get()
@@ -25,6 +30,51 @@ fn set_gui_row_sender(sender: Option<Sender<String>>) {
     }
 }
 
+fn resolve_output_path(input: &str) -> PathBuf {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return std::env::current_dir()
+            .map(|dir| dir.join("output.csv"))
+            .unwrap_or_else(|_| PathBuf::from("output.csv"));
+    }
+
+    let path = PathBuf::from(trimmed);
+    if path.is_dir() || trimmed.ends_with('\\') || trimmed.ends_with('/') {
+        path.join("output.csv")
+    } else {
+        path
+    }
+}
+
+fn trim_terminal_buffer(terminal: &mut String) {
+    if terminal.len() <= MAX_TERMINAL_CHARS {
+        return;
+    }
+
+    let mut cut_at = terminal.len() - MAX_TERMINAL_CHARS;
+    while cut_at < terminal.len() && !terminal.is_char_boundary(cut_at) {
+        cut_at += 1;
+    }
+
+    if cut_at < terminal.len()
+        && let Some(newline_offset) = terminal[cut_at..].find('\n')
+    {
+        cut_at += newline_offset + 1;
+    }
+
+    if cut_at > 0 {
+        terminal.drain(..cut_at);
+    }
+}
+
+fn append_terminal_line(terminal: &mut String, line: &str) {
+    if !terminal.is_empty() {
+        terminal.push('\n');
+    }
+    terminal.push_str(line);
+    trim_terminal_buffer(terminal);
+}
+
 pub struct NanoVNASaverApp {
     terminal: String,
     available_ports: Vec<String>,
@@ -33,6 +83,7 @@ pub struct NanoVNASaverApp {
     end_freq: u64,
     num_points: usize,
     num_ports: usize,
+    save_path: String,
     label: String,
     if_bandwidth: u32,
     time: u64,
@@ -42,6 +93,7 @@ pub struct NanoVNASaverApp {
     log_rx: Option<Receiver<String>>,
     run_rx: Option<Receiver<Result<(DataFrame, String), String>>>,
     dataframe: Option<DataFrame>,
+    stop_flag: Option<Arc<AtomicBool>>,
 }
 
 impl Default for NanoVNASaverApp {
@@ -54,6 +106,9 @@ impl Default for NanoVNASaverApp {
             end_freq: 900_000_000,
             num_points: 101,
             num_ports: 2,
+            save_path: std::env::current_dir()
+                .map(|dir| dir.join("output.csv").display().to_string())
+                .unwrap_or_else(|_| "output.csv".to_string()),
             label: String::new(),
             if_bandwidth: 0,
             time: 0,
@@ -63,6 +118,7 @@ impl Default for NanoVNASaverApp {
             log_rx: None,
             run_rx: None,
             dataframe: None,
+            stop_flag: None,
         };
         app.refresh_ports();
         app
@@ -78,6 +134,10 @@ impl NanoVNASaverApp {
 
     fn validation_messages(&self) -> Vec<String> {
         let mut errors = Vec::new();
+
+        if self.selected_ports.is_empty() {
+            errors.push("Select at least one COM port".to_string());
+        }
 
         if self.start_freq >= self.end_freq {
             errors.push("Start frequency must be less than End frequency".to_string());
@@ -114,11 +174,18 @@ impl NanoVNASaverApp {
 impl eframe::App for NanoVNASaverApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Some(rx) = &self.log_rx {
-            while let Ok(row) = rx.try_recv() {
-                if !self.terminal.is_empty() {
-                    self.terminal.push('\n');
-                }
-                self.terminal.push_str(&row);
+            let mut processed = 0usize;
+            while processed < MAX_LOG_ROWS_PER_FRAME {
+                let Ok(row) = rx.try_recv() else {
+                    break;
+                };
+                append_terminal_line(&mut self.terminal, &row);
+                processed += 1;
+            }
+
+            if processed == MAX_LOG_ROWS_PER_FRAME {
+                // Keep repainting while there is buffered log data to avoid UI stalls.
+                ctx.request_repaint();
             }
         }
 
@@ -128,21 +195,15 @@ impl eframe::App for NanoVNASaverApp {
             self.is_running = false;
             self.run_rx = None;
             self.log_rx = None;
+            self.stop_flag = None;
             set_gui_row_sender(None);
-
-            if !self.terminal.is_empty() {
-                self.terminal.push('\n');
-            }
 
             match result {
                 Ok((dataframe, message)) => {
-                    self.terminal.push_str(&message);
+                    append_terminal_line(&mut self.terminal, &message);
                     self.dataframe = Some(dataframe);
                 }
-                Err(err) => {
-                    self.terminal.push_str("Error: ");
-                    self.terminal.push_str(&err);
-                }
+                Err(err) => append_terminal_line(&mut self.terminal, &format!("Error: {err}")),
             }
         }
 
@@ -197,6 +258,13 @@ impl eframe::App for NanoVNASaverApp {
                 ui.heading("NanoVNA-Saver");
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.save_path)
+                            .hint_text("Save Path")
+                            .desired_width(320.0),
+                    );
+                    ui.add_space(8.0);
+
                     let button_text = if self.is_running { "Stop" } else { "Start" };
                     let button_color = if self.is_running {
                         egui::Color32::from_rgb(200, 40, 40)
@@ -210,9 +278,15 @@ impl eframe::App for NanoVNASaverApp {
                         if ui
                             .add(egui::Button::new(strong_text).fill(button_color))
                             .clicked()
-                        {
-                            self.is_running = false;
-                        }
+                            && let Some(flag) = &self.stop_flag {
+                                let was_stopped = flag.swap(true, Ordering::Relaxed);
+                                if !was_stopped {
+                                    append_terminal_line(
+                                        &mut self.terminal,
+                                        "Stop requested. Interrupting active sweep...",
+                                    );
+                                }
+                            }
                     } else if ui
                         .add(egui::Button::new(strong_text).fill(button_color))
                         .clicked()
@@ -228,13 +302,22 @@ impl eframe::App for NanoVNASaverApp {
                             } else {
                                 None
                             };
-                            let label = self.label.trim().to_string();
+                            let label = {
+                                let trimmed = self.label.trim();
+                                if trimmed.is_empty() {
+                                    "default_label".to_string()
+                                } else {
+                                    trimmed.to_string()
+                                }
+                            };
+                            let output_path = resolve_output_path(&self.save_path);
 
                             let num_ports = if self.num_ports == 2 { 2 } else { 1 };
 
                             let config = RunConfig {
                                 num_sweeps,
                                 vna_number: 1,
+                                selected_port_names: Some(self.selected_ports.clone()),
                                 start_freq: self.start_freq,
                                 end_freq: self.end_freq,
                                 num_points: self.num_points,
@@ -243,6 +326,11 @@ impl eframe::App for NanoVNASaverApp {
                                 time,
                                 label,
                                 row_callback: Some(gui_row_callback),
+                                stop_flag: {
+                                    let flag = Arc::new(AtomicBool::new(false));
+                                    self.stop_flag = Some(Arc::clone(&flag));
+                                    flag
+                                },
                             };
 
                             let (log_tx, log_rx) = mpsc::channel();
@@ -255,14 +343,38 @@ impl eframe::App for NanoVNASaverApp {
 
                             thread::spawn(move || {
                                 let result = run(config).and_then(|sweep| {
-                                    let output_path = std::env::current_dir()
-                                        .map_err(|e| format!("Failed to get current directory: {e}"))?
-                                        .join("output.csv");
-
                                     let mut df = sweep.dataframe;
                                     let df_clone = df.clone();
-                                    let mut file = File::create(&output_path)
-                                        .map_err(|e| format!("Failed to create CSV file: {e}"))?;
+
+                                    if let Some(parent) = output_path.parent()
+                                        && !parent.as_os_str().is_empty()
+                                    {
+                                        create_dir_all(parent).map_err(|e| {
+                                            format!(
+                                                "Failed to create output directory '{}': {e}",
+                                                parent.display()
+                                            )
+                                        })?;
+                                    }
+
+                                    let mut file = OpenOptions::new()
+                                        .create(true)
+                                        .write(true)
+                                        .truncate(true)
+                                        .open(&output_path)
+                                        .map_err(|e| {
+                                            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                                                format!(
+                                                    "Failed to create CSV file '{}': {e}. This path may be a protected location, a folder, or the file may be locked by another program.",
+                                                    output_path.display()
+                                                )
+                                            } else {
+                                                format!(
+                                                    "Failed to create CSV file '{}': {e}",
+                                                    output_path.display()
+                                                )
+                                            }
+                                        })?;
 
                                     CsvWriter::new(&mut file)
                                         .include_header(true)
@@ -280,11 +392,10 @@ impl eframe::App for NanoVNASaverApp {
                             });
                         } else {
                             for error in &validation_errors {
-                                if !self.terminal.is_empty() {
-                                    self.terminal.push('\n');
-                                }
-                                self.terminal.push_str("Error: ");
-                                self.terminal.push_str(error);
+                                append_terminal_line(
+                                    &mut self.terminal,
+                                    &format!("Error: {error}"),
+                                );
                             }
                         }
                     }
