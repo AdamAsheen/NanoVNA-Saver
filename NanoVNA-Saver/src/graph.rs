@@ -1,6 +1,19 @@
 use eframe::egui;
 use egui_plot::{Line, Plot, PlotPoints};
 
+const vna_colors: &[egui::Color32] = &[
+    egui::Color32::from_rgb(255, 165, 0),
+    egui::Color32::from_rgb(70, 130, 255),
+    egui::Color32::from_rgb(220, 50, 50),
+    egui::Color32::from_rgb(50, 200, 50),
+    egui::Color32::from_rgb(180, 0, 255),
+    egui::Color32::from_rgb(0, 200, 200),
+    egui::Color32::from_rgb(255, 100, 180),
+    egui::Color32::from_rgb(255, 220, 0),
+    egui::Color32::from_rgb(150, 100, 50),
+    egui::Color32::from_rgb(200, 200, 200),
+];
+
 pub fn s11_log_mag(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32) {
     ui.label("S11 Log Magnitude (dB)");
     Plot::new("s11_log_mag")
