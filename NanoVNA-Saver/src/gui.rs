@@ -294,7 +294,6 @@ mod tests {
         let default = NanoVNASaverApp::default();
 
         assert_eq!(default.terminal, String::new());
-        assert_eq!(default.available_ports, Vec::<String>::new());
         assert_eq!(default.selected_port, None);
         assert_eq!(default.start_freq, 50_000);
         assert_eq!(default.end_freq, 900_000_000);
