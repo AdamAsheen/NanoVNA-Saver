@@ -36,7 +36,7 @@ pub fn s11_log_mag(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width
         });
 }
 
-pub fn s21_log_mag(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32) {
+pub fn s21_log_mag(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width: f32) {
     ui.label("S21 Log Magnitude (dB)");
     Plot::new("s21_log_mag")
         .height(height)
