@@ -14,7 +14,7 @@ const vna_colors: &[egui::Color32] = &[
     egui::Color32::from_rgb(200, 200, 200),
 ];
 
-pub fn s11_log_mag(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32) {
+pub fn s11_log_mag(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width: f32) {
     ui.label("S11 Log Magnitude (dB)");
     Plot::new("s11_log_mag")
         .height(height)
@@ -22,14 +22,17 @@ pub fn s11_log_mag(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32
         .x_axis_label("Frequency (Hz)")
         .y_axis_label("dB")
         .show(ui, |plot_ui| {
-            let points: PlotPoints = data
+        for (i, vna_data) in data.iter().enumerate() {
+            let color = VNA_COLORS[i % VNA_COLORS.len()];
+            let points: PlotPoints = vna_data
                 .iter()
                 .map(|p| {
                     let mag_db = 20.0 * (p[1] * p[1] + p[2] * p[2]).sqrt().max(1e-30).log10();
                     [p[0], mag_db]
                 })
                 .collect();
-            plot_ui.line(Line::new(points).name("S11"));
+            plot_ui.line(Line::new(points).color(color).name(format!("VNA {}", i + 1)));
+        }
         });
 }
 
