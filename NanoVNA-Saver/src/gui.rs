@@ -474,11 +474,16 @@ impl eframe::App for NanoVNASaverApp {
                 let mut s11: Vec<[f64; 3]> = Vec::new();
                 let mut s21: Vec<[f64; 3]> = Vec::new();
 
-                for i in 0..channels.len(){
-                    let(Some(ch), Some(freq), Some(real), Some(imag)) = (channels[i], freqs[i], reals[i], imags[i]) else {continue;};
+                let sweep_ids = df.column("sweep_id").unwrap().str().unwrap().into_iter().collect::<Vec<_>>();
+                let last_sweep_id = sweep_ids.last().and_then(|s| *s).unwrap_or("");
+
+                for i in 0..channels.len() {
+                    let (Some(ch), Some(freq), Some(real), Some(imag), Some(sid)) =
+                        (channels[i], freqs[i], reals[i], imags[i], sweep_ids[i]) else { continue; };
+                    if sid != last_sweep_id { continue; }
                     match ch {
-                        "S11" => s11.push([freq,real,imag]),
-                        "S21" => s21.push([freq,real,imag]),
+                        "S11" => s11.push([freq, real, imag]),
+                        "S21" => s21.push([freq, real, imag]),
                         &_ => {}
                     }
                 }
