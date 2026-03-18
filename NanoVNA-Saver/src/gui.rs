@@ -217,6 +217,13 @@ impl eframe::App for NanoVNASaverApp {
                 ui.heading("NanoVNA-Saver");
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.save_path)
+                            .hint_text("Save Path")
+                            .desired_width(320.0),
+                    );
+                    ui.add_space(8.0);
+
                     let button_text = if self.is_running { "Stop" } else { "Start" };
                     let button_color = if self.is_running {
                         egui::Color32::from_rgb(200, 40, 40)
@@ -467,21 +474,6 @@ impl eframe::App for NanoVNASaverApp {
                                     ui.selectable_value(&mut self.num_ports, 2, "2");
                                 });
                             ui.label("Num Ports");
-                        });
-
-                        ui.add_space(8.0);
-
-                        ui.group(|ui| {
-                            ui.set_min_height(77.0);
-                            ui.vertical(|ui| {
-                                ui.add(
-                                    egui::TextEdit::singleline(&mut self.save_path)
-                                        .hint_text("Save Path")
-                                        .desired_width(260.0),
-                                );
-                                ui.add_space(4.0);
-                                ui.label("Save Path");
-                            });
                         });
                     });
                 });
