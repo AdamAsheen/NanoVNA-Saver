@@ -55,31 +55,32 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
         return Err("No NanoVNA devices detected".into());
     }
 
-    let ports_to_use: Vec<SerialPortInfo> = if let Some(selected_names) = &config.selected_port_names {
-        if selected_names.is_empty() {
-            return Err("No NanoVNA ports selected".into());
-        }
+    let ports_to_use: Vec<SerialPortInfo> =
+        if let Some(selected_names) = &config.selected_port_names {
+            if selected_names.is_empty() {
+                return Err("No NanoVNA ports selected".into());
+            }
 
-        let mut selected = Vec::new();
-        for selected_name in selected_names {
-            let Some(port) = filtered_ports
-                .iter()
-                .find(|p| p.port_name == *selected_name)
-                .cloned()
-            else {
-                return Err(format!(
-                    "Selected port '{}' is no longer available",
-                    selected_name
-                ));
-            };
+            let mut selected = Vec::new();
+            for selected_name in selected_names {
+                let Some(port) = filtered_ports
+                    .iter()
+                    .find(|p| p.port_name == *selected_name)
+                    .cloned()
+                else {
+                    return Err(format!(
+                        "Selected port '{}' is no longer available",
+                        selected_name
+                    ));
+                };
 
-            selected.push(port);
-        }
+                selected.push(port);
+            }
 
-        selected
-    } else {
-        filtered_ports.into_iter().take(config.vna_number).collect()
-    };
+            selected
+        } else {
+            filtered_ports.into_iter().take(config.vna_number).collect()
+        };
 
     if ports_to_use.is_empty() {
         return Err("No NanoVNA devices selected".into());
