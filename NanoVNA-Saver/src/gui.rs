@@ -582,19 +582,29 @@ impl eframe::App for NanoVNASaverApp {
                 let reals = df.column("real").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
                 let imags = df.column("imag").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
 
-                let mut s11: Vec<[f64; 3]> = Vec::new();
-                let mut s21: Vec<[f64; 3]> = Vec::new();
-
                 let sweep_ids = df.column("sweep_id").unwrap().str().unwrap().into_iter().collect::<Vec<_>>();
-                let last_sweep_id = sweep_ids.last().and_then(|s| *s).unwrap_or("");
+                let vna_nums = df.column("vna_number").unwrap().i32().unwrap().into_iter().collect::<Vec<_>>();
+
+                let mut last_sweep_per_vna: std::collections::HashMap<i32, &str> = std::collections::HashMap::new();
+                for i in 0..sweep_ids.len() {
+                    if let (Some(sid), Some(vna)) = (sweep_ids[i], vna_nums[i]) {
+                        last_sweep_per_vna.insert(vna, sid);
+                    }
+                }
+
+                let max_vna = vna_nums.iter().filter_map(|v| *v).max().unwrap_or(1) as usize;
+
+                let mut s11: Vec<Vec<[f64; 3]>> = vec![Vec::new(); max_vna];
+                let mut s21: Vec<Vec<[f64; 3]>> = vec![Vec::new(); max_vna];
 
                 for i in 0..channels.len() {
-                    let (Some(ch), Some(freq), Some(real), Some(imag), Some(sid)) =
-                        (channels[i], freqs[i], reals[i], imags[i], sweep_ids[i]) else { continue; };
-                    if sid != last_sweep_id { continue; }
+                    let (Some(ch), Some(freq), Some(real), Some(imag), Some(vna), Some(sid)) =
+                        (channels[i], freqs[i], reals[i], imags[i], vna_nums[i], sweep_ids[i]) else { continue; };
+                    if last_sweep_per_vna.get(&(vna as i32)).copied() != Some(sid) { continue; }
+                    let vna_idx = (vna as usize) - 1;
                     match ch {
-                        "S11" => s11.push([freq, real, imag]),
-                        "S21" => s21.push([freq, real, imag]),
+                        "S11" => { if vna_idx < max_vna { s11[vna_idx].push([freq, real, imag]); } }
+                        "S21" => { if vna_idx < max_vna { s21[vna_idx].push([freq, real, imag]); } }
                         &_ => {}
                     }
                 }
