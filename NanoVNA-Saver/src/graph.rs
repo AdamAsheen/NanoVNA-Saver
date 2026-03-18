@@ -44,18 +44,23 @@ pub fn s21_log_mag(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width
         .x_axis_label("Frequency (Hz)")
         .y_axis_label("dB")
         .show(ui, |plot_ui| {
-            let points: PlotPoints = data
-                .iter()
-                .map(|p| {
-                    let mag_db = 20.0 * (p[1] * p[1] + p[2] * p[2]).sqrt().max(1e-30).log10();
-                    [p[0], mag_db]
-                })
+            for (i, vna_data) in data.iter().enumerate() {
+                let color = VNA_COLORS[i % VNA_COLORS.len()];
+                let points: PlotPoints = vna_data
+                    .iter()
+                    .map(|p| {
+                        let mag_db = 20.0 * (p[1] * p[1] + p[2] * p[2]).sqrt().max(1e-30).log10();
+                        [p[0], mag_db]
+                    })
+                    .collect();
+                plot_ui.line(Line::new(points).color(color).name(format!("VNA {}", i + 1)));
+            }
                 .collect();
             plot_ui.line(Line::new(points).name("S21"));
         });
 }
 
-pub fn s21_phase(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32) {
+pub fn s21_phase(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width: f32) {
     ui.label("S21 Phase (°)");
     Plot::new("s21_phase")
         .height(height)
@@ -63,14 +68,17 @@ pub fn s21_phase(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32) 
         .x_axis_label("Frequency (Hz)")
         .y_axis_label("degrees")
         .show(ui, |plot_ui| {
-            let points: PlotPoints = data
-                .iter()
-                .map(|p| {
-                    let phase_deg = p[2].atan2(p[1]).to_degrees();
-                    [p[0], phase_deg]
-                })
-                .collect();
-            plot_ui.line(Line::new(points).name("S21 Phase"));
+            for (i, vna_data) in data.iter().enumerate() {
+                let color = VNA_COLORS[i % VNA_COLORS.len()];
+                let points: PlotPoints = vna_data
+                    .iter()
+                    .map(|p| {
+                        let phase_deg = p[2].atan2(p[1]).to_degrees();
+                        [p[0], phase_deg]
+                    })
+                    .collect();
+                plot_ui.line(Line::new(points).color(color).name(format!("VNA {}", i + 1)));
+            }
         });
 }
 
