@@ -82,7 +82,7 @@ pub fn s21_phase(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width: 
         });
 }
 
-pub fn s11_smith(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32) {
+pub fn s11_smith(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width: f32) {
     ui.label("S11 Smith Chart");
     Plot::new("s11_smith")
         .height(height)
@@ -138,13 +138,16 @@ pub fn s11_smith(ui: &mut egui::Ui, data: &[[f64; 3]], height: f32, width: f32) 
                 }
             }
 
-            if !data.is_empty() {
-                let pts: PlotPoints = data.iter().map(|p| [p[1], p[2]]).collect();
-                plot_ui.line(
-                    Line::new(pts)
-                        .color(egui::Color32::from_rgb(255, 165, 0))
-                        .name("S11"),
-                );
+            for (i, vna_data) in data.iter().enumerate() {
+                if !vna_data.is_empty() {
+                    let color = VNA_COLORS[i % VNA_COLORS.len()];
+                    let pts: PlotPoints = vna_data.iter().map(|p| [p[1], p[2]]).collect();
+                    plot_ui.line(
+                        Line::new(pts)
+                            .color(color)
+                            .name(format!("VNA {}", i + 1)),
+                    );
+                }
             }
         });
 }
