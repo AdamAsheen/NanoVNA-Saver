@@ -132,6 +132,10 @@ impl NanoVNASaverApp {
     fn validation_messages(&self) -> Vec<String> {
         let mut errors = Vec::new();
 
+        if self.selected_ports.is_empty() {
+            errors.push("Select at least one COM port".to_string());
+        }
+
         if self.start_freq >= self.end_freq {
             errors.push("Start frequency must be less than End frequency".to_string());
         }
@@ -307,6 +311,7 @@ impl eframe::App for NanoVNASaverApp {
                             let config = RunConfig {
                                 num_sweeps,
                                 vna_number: 1,
+                                selected_port_names: Some(self.selected_ports.clone()),
                                 start_freq: self.start_freq,
                                 end_freq: self.end_freq,
                                 num_points: self.num_points,

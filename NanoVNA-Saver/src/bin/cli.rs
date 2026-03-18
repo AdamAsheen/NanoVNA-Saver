@@ -72,6 +72,7 @@ fn run_cli(args: CliArgs) {
     let config = RunConfig {
         num_sweeps: args.num_sweeps,
         vna_number: args.vna_number,
+        selected_port_names: None,
         start_freq: args.start_freq,
         end_freq: args.end_freq,
         num_points,
