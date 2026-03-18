@@ -600,7 +600,7 @@ impl eframe::App for NanoVNASaverApp {
                 for i in 0..channels.len() {
                     let (Some(ch), Some(freq), Some(real), Some(imag), Some(vna), Some(sid)) =
                         (channels[i], freqs[i], reals[i], imags[i], vna_nums[i], sweep_ids[i]) else { continue; };
-                    if last_sweep_per_vna.get(&(vna as i32)).copied() != Some(sid) { continue; }
+                    if last_sweep_per_vna.get(&vna).copied() != Some(sid) { continue; }
                     let vna_idx = (vna as usize) - 1;
                     match ch {
                         "S11" => { if vna_idx < max_vna { s11[vna_idx].push([freq, real, imag]); } }

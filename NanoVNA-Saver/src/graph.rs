@@ -1,7 +1,7 @@
 use eframe::egui;
 use egui_plot::{Line, Plot, PlotPoints};
 
-const vna_colors: &[egui::Color32] = &[
+const VNA_COLORS: &[egui::Color32] = &[
     egui::Color32::from_rgb(255, 165, 0),
     egui::Color32::from_rgb(70, 130, 255),
     egui::Color32::from_rgb(220, 50, 50),
@@ -22,17 +22,21 @@ pub fn s11_log_mag(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width
         .x_axis_label("Frequency (Hz)")
         .y_axis_label("dB")
         .show(ui, |plot_ui| {
-        for (i, vna_data) in data.iter().enumerate() {
-            let color = VNA_COLORS[i % VNA_COLORS.len()];
-            let points: PlotPoints = vna_data
-                .iter()
-                .map(|p| {
-                    let mag_db = 20.0 * (p[1] * p[1] + p[2] * p[2]).sqrt().max(1e-30).log10();
-                    [p[0], mag_db]
-                })
-                .collect();
-            plot_ui.line(Line::new(points).color(color).name(format!("VNA {}", i + 1)));
-        }
+            for (i, vna_data) in data.iter().enumerate() {
+                let color = VNA_COLORS[i % VNA_COLORS.len()];
+                let points: PlotPoints = vna_data
+                    .iter()
+                    .map(|p| {
+                        let mag_db = 20.0 * (p[1] * p[1] + p[2] * p[2]).sqrt().max(1e-30).log10();
+                        [p[0], mag_db]
+                    })
+                    .collect();
+                plot_ui.line(
+                    Line::new(points)
+                        .color(color)
+                        .name(format!("VNA {}", i + 1)),
+                );
+            }
         });
 }
 
@@ -53,10 +57,12 @@ pub fn s21_log_mag(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width
                         [p[0], mag_db]
                     })
                     .collect();
-                plot_ui.line(Line::new(points).color(color).name(format!("VNA {}", i + 1)));
+                plot_ui.line(
+                    Line::new(points)
+                        .color(color)
+                        .name(format!("VNA {}", i + 1)),
+                );
             }
-                .collect();
-            plot_ui.line(Line::new(points).name("S21"));
         });
 }
 
@@ -77,7 +83,11 @@ pub fn s21_phase(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width: 
                         [p[0], phase_deg]
                     })
                     .collect();
-                plot_ui.line(Line::new(points).color(color).name(format!("VNA {}", i + 1)));
+                plot_ui.line(
+                    Line::new(points)
+                        .color(color)
+                        .name(format!("VNA {}", i + 1)),
+                );
             }
         });
 }
@@ -142,11 +152,7 @@ pub fn s11_smith(ui: &mut egui::Ui, data: &[Vec<[f64; 3]>], height: f32, width: 
                 if !vna_data.is_empty() {
                     let color = VNA_COLORS[i % VNA_COLORS.len()];
                     let pts: PlotPoints = vna_data.iter().map(|p| [p[1], p[2]]).collect();
-                    plot_ui.line(
-                        Line::new(pts)
-                            .color(color)
-                            .name(format!("VNA {}", i + 1)),
-                    );
+                    plot_ui.line(Line::new(pts).color(color).name(format!("VNA {}", i + 1)));
                 }
             }
         });
