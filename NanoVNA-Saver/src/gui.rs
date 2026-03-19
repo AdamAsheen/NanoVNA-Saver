@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn test_validation_messages_normal() {
         let mut mock = NanoVNASaverApp::default();
-    
+
         mock.selected_ports.push("port_name".to_string());
         let expected: Vec<String> = Vec::new();
 
