@@ -590,8 +590,9 @@ mod tests {
 
     #[test]
     fn test_validation_messages_normal() {
-        let mock = NanoVNASaverApp::default();
-
+        let mut mock = NanoVNASaverApp::default();
+    
+        mock.selected_ports.push("port_name".to_string());
         let expected: Vec<String> = Vec::new();
 
         assert_eq!(mock.validation_messages(), expected);
@@ -600,7 +601,8 @@ mod tests {
     #[test]
     fn test_validation_messages_all() {
         let mock = NanoVNASaverApp {
-            end_freq: 10_000,
+            selected_ports: Vec::new(),
+            end_freq: 5_000,
             num_points: 10_000,
             time: 0,
             num_sweeps: 0,
@@ -609,6 +611,9 @@ mod tests {
 
         let expected: Vec<String> = vec![
             "Start frequency must be less than End frequency".to_string(),
+            "Select at least one COM port".to_string(),
+            "End frequency must be 50 kHz or more".to_string(),
+            "Start frequency must be 50 kHz or more".to_string(),
             "Points must be 101 or less".to_string(),
             "Either Time or Num Sweeps must be set, but not both".to_string(),
         ];
