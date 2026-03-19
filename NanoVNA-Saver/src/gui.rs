@@ -567,3 +567,52 @@ impl eframe::App for NanoVNASaverApp {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_values() {
+        let default = NanoVNASaverApp::default();
+
+        assert_eq!(default.terminal, String::new());
+        assert_eq!(default.start_freq, 50_000);
+        assert_eq!(default.end_freq, 900_000_000);
+        assert_eq!(default.num_points, 101);
+        assert_eq!(default.num_ports, 2);
+        assert_eq!(default.label, String::new());
+        assert_eq!(default.if_bandwidth, 0);
+        assert_eq!(default.time, 0);
+        assert_eq!(default.num_sweeps, 1);
+        assert!(!default.is_running);
+    }
+
+    #[test]
+    fn test_validation_messages_normal() {
+        let mock = NanoVNASaverApp::default();
+
+        let expected: Vec<String> = Vec::new();
+
+        assert_eq!(mock.validation_messages(), expected);
+    }
+
+    #[test]
+    fn test_validation_messages_all() {
+        let mock = NanoVNASaverApp {
+            end_freq: 10_000,
+            num_points: 10_000,
+            time: 0,
+            num_sweeps: 0,
+            ..Default::default()
+        };
+
+        let expected: Vec<String> = vec![
+            "Start frequency must be less than End frequency".to_string(),
+            "Points must be 101 or less".to_string(),
+            "Either Time or Num Sweeps must be set, but not both".to_string(),
+        ];
+
+        assert_eq!(mock.validation_messages(), expected);
+    }
+}
