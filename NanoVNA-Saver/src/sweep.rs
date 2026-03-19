@@ -843,7 +843,8 @@ mod tests {
         });
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
+        let stop_flag = Arc::new(AtomicBool::new(false));
         // Call with 50 points
-        let _ = perform_sweep(mock.as_mut(), 0, 50000, 50000, 50).unwrap();
+        let _ = perform_sweep(mock.as_mut(), 0, 50000, 50000, 50, &stop_flag).unwrap();
     }
 }
