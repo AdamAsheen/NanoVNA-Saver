@@ -1,4 +1,7 @@
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::thread;
+use tokio_serial::SerialPortInfo;
 use tokio_serial::SerialPortType;
 
 pub mod gui;
@@ -9,6 +12,7 @@ use sweep::{SweepParams, SweepResult};
 pub struct RunConfig {
     pub num_sweeps: usize,
     pub vna_number: usize,
+    pub selected_port_names: Option<Vec<String>>,
     pub start_freq: u64,
     pub end_freq: u64,
     pub num_points: usize,
@@ -17,9 +21,10 @@ pub struct RunConfig {
     pub time: Option<u64>,
     pub label: String,
     pub row_callback: Option<fn(&str)>,
+    pub stop_flag: Arc<AtomicBool>,
 }
 
-pub fn run(config: RunConfig) -> Result<SweepResult, String> {
+fn get_filtered_nanovna_ports() -> Result<Vec<SerialPortInfo>, String> {
     let ports = tokio_serial::available_ports().map_err(|_| "Failed to enumerate serial ports")?;
 
     let filtered_ports: Vec<_> = ports
@@ -33,15 +38,57 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
         })
         .collect();
 
+    Ok(filtered_ports)
+}
+
+pub fn detect_nanovna_port_names() -> Result<Vec<String>, String> {
+    Ok(get_filtered_nanovna_ports()?
+        .into_iter()
+        .map(|p| p.port_name)
+        .collect())
+}
+
+pub fn run(config: RunConfig) -> Result<SweepResult, String> {
+    let filtered_ports = get_filtered_nanovna_ports()?;
+
     if filtered_ports.is_empty() {
         return Err("No NanoVNA devices detected".into());
     }
 
-    let vnas_to_use = filtered_ports.into_iter().take(config.vna_number);
+    let ports_to_use: Vec<SerialPortInfo> =
+        if let Some(selected_names) = &config.selected_port_names {
+            if selected_names.is_empty() {
+                return Err("No NanoVNA ports selected".into());
+            }
+
+            let mut selected = Vec::new();
+            for selected_name in selected_names {
+                let Some(port) = filtered_ports
+                    .iter()
+                    .find(|p| p.port_name == *selected_name)
+                    .cloned()
+                else {
+                    return Err(format!(
+                        "Selected port '{}' is no longer available",
+                        selected_name
+                    ));
+                };
+
+                selected.push(port);
+            }
+
+            selected
+        } else {
+            filtered_ports.into_iter().take(config.vna_number).collect()
+        };
+
+    if ports_to_use.is_empty() {
+        return Err("No NanoVNA devices selected".into());
+    }
 
     let mut handles = Vec::new();
 
-    for (idx, port) in vnas_to_use.enumerate() {
+    for (idx, port) in ports_to_use.into_iter().enumerate() {
         println!("Connected to NanoVNA {} on {}", idx + 1, port.port_name);
 
         let params = SweepParams {
@@ -56,6 +103,7 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
             time: config.time,
             label: config.label.clone(),
             row_callback: config.row_callback,
+            stop_flag: Arc::clone(&config.stop_flag),
         };
 
         handles.push(thread::spawn(move || sweep::run_on_port(params)));
@@ -67,8 +115,8 @@ pub fn run(config: RunConfig) -> Result<SweepResult, String> {
     for h in handles {
         let result = h
             .join()
-            .map_err(|_| "Thread panicked")?
-            .map_err(|_| "Sweep failed")?;
+            .map_err(|_| "Thread panicked".to_string())?
+            .map_err(|e| format!("Sweep failed: {e}"))?;
 
         total_bytes += result.total_bytes;
         total_time += result.elapsed_seconds;

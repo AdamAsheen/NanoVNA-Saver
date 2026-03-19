@@ -2,6 +2,8 @@ use polars::frame::DataFrame;
 use polars::prelude::NamedFrom;
 use polars::series::Series;
 use std::error::Error;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio_serial::{ClearBuffer, SerialPort};
 use uuid::Uuid;
@@ -19,6 +21,7 @@ pub struct SweepParams {
     pub time: Option<u64>,
     pub label: String,
     pub row_callback: Option<fn(&str)>,
+    pub stop_flag: Arc<AtomicBool>,
 }
 
 pub struct SweepResult {
@@ -40,6 +43,7 @@ pub fn run_on_port(params: SweepParams) -> Result<SweepResult, Box<dyn Error + S
         time,
         label,
         row_callback,
+        stop_flag,
     } = params;
 
     let builder = tokio_serial::new(&port_name, 115200).timeout(Duration::from_millis(100));
@@ -93,12 +97,19 @@ pub fn run_on_port(params: SweepParams) -> Result<SweepResult, Box<dyn Error + S
             sweep_idx < num_sweeps
         }
     } {
+        if stop_flag.load(Ordering::Relaxed) {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "Sweep interrupted by user",
+            )));
+        }
+
         let sweep_id = Uuid::new_v4();
         let sweep_id_string = sweep_id.to_string();
 
         let time_cmd_sent_s11 = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
 
-        match perform_sweep(&mut *port, 0, start_freq, end_freq, num_points) {
+        match perform_sweep(&mut *port, 0, start_freq, end_freq, num_points, &stop_flag) {
             Ok((bytes_read, sweep_data)) => {
                 total_bytes += bytes_read;
 
@@ -166,9 +177,16 @@ pub fn run_on_port(params: SweepParams) -> Result<SweepResult, Box<dyn Error + S
         }
 
         if num_ports == 2 {
+            if stop_flag.load(Ordering::Relaxed) {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "Sweep interrupted by user",
+                )));
+            }
+
             let time_cmd_sent_s21 = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs_f64();
 
-            match perform_sweep(&mut *port, 1, start_freq, end_freq, num_points) {
+            match perform_sweep(&mut *port, 1, start_freq, end_freq, num_points, &stop_flag) {
                 Ok((bytes_read, s21_data)) => {
                     total_bytes += bytes_read;
 
@@ -275,6 +293,7 @@ fn perform_sweep(
     start_freq: u64,
     end_freq: u64,
     num_points: usize,
+    stop_flag: &Arc<AtomicBool>,
 ) -> Result<(usize, String), std::io::Error> {
     let _ = port.clear(ClearBuffer::Input);
 
@@ -289,6 +308,13 @@ fn perform_sweep(
     let sweep_timeout = Duration::from_millis(5000 + (num_points as u64 * 20));
 
     loop {
+        if stop_flag.load(Ordering::Relaxed) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "Sweep interrupted by user",
+            ));
+        }
+
         if start.elapsed() > sweep_timeout {
             break;
         }
@@ -322,6 +348,13 @@ fn perform_sweep(
     let read_timeout = Duration::from_millis(3000 + (num_points as u64 * 10));
 
     loop {
+        if stop_flag.load(Ordering::Relaxed) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Interrupted,
+                "Sweep interrupted by user",
+            ));
+        }
+
         if start.elapsed() > read_timeout {
             break;
         }
@@ -464,7 +497,10 @@ mod tests {
                 Ok(len)
             });
 
-        let text = perform_sweep(&mut mock, 1, 101, 50000, 50000).unwrap().1;
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let text = perform_sweep(&mut mock, 1, 101, 50000, 50000, &stop_flag)
+            .unwrap()
+            .1;
         let expected = "0.000000,0.000000\r\n".repeat(101) + "ch>";
 
         assert_eq!(text, expected);
@@ -517,7 +553,9 @@ mod tests {
             });
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
-        let (count, text) = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let (count, text) =
+            perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101, &stop_flag).unwrap();
 
         // Check we got at least 101 lines (plus the prompt line)
         assert!(text.lines().count() >= 101);
@@ -570,7 +608,9 @@ mod tests {
             });
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
-        let (_, text) = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let (_, text) =
+            perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101, &stop_flag).unwrap();
         assert!(text.lines().count() >= 101); // we only guarantee stop condition
     }
 
@@ -598,7 +638,8 @@ mod tests {
             .returning(|_| Err(std::io::ErrorKind::TimedOut.into()));
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
-        let _ = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let _ = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101, &stop_flag).unwrap();
     }
 
     #[test]
@@ -650,7 +691,9 @@ mod tests {
             });
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
-        let (_, text) = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let (_, text) =
+            perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101, &stop_flag).unwrap();
         assert_eq!(text.lines().count(), 20);
     }
 
@@ -713,7 +756,9 @@ mod tests {
             });
 
         let mut mock = Box::new(mock) as Box<dyn tokio_serial::SerialPort>;
-        let (_, text) = perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101).unwrap();
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let (_, text) =
+            perform_sweep(mock.as_mut(), 0, 50_000_000, 900_000_000, 101, &stop_flag).unwrap();
         // At least 101 lines again
         assert!(text.lines().count() >= 101);
     }
