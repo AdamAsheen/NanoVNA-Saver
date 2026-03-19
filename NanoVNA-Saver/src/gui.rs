@@ -603,6 +603,7 @@ mod tests {
         let mock = NanoVNASaverApp {
             selected_ports: Vec::new(),
             end_freq: 5_000,
+            start_freq: 10_000,
             num_points: 10_000,
             time: 0,
             num_sweeps: 0,
@@ -610,8 +611,8 @@ mod tests {
         };
 
         let expected: Vec<String> = vec![
-            "Start frequency must be less than End frequency".to_string(),
             "Select at least one COM port".to_string(),
+            "Start frequency must be less than End frequency".to_string(),
             "End frequency must be 50 kHz or more".to_string(),
             "Start frequency must be 50 kHz or more".to_string(),
             "Points must be 101 or less".to_string(),
