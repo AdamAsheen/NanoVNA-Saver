@@ -7,6 +7,7 @@ clippy-check:
   stage: lint
   tags:
     - adam-home-pc
+    - martin-home-server
   script: 
     - rustup component add clippy
     - rustup component add rustfmt
@@ -18,6 +19,7 @@ rust-latest:
   stage: build
   tags:
     - adam-home-pc
+    - martin-home-server
   script:
     - cd NanoVNA-Saver
     - cargo build --verbose
@@ -26,6 +28,7 @@ test:
   stage: test
   tags:
     - adam-home-pc
+    - martin-home-server
   script:
     - cd NanoVNA-Saver
     - cargo test --verbose
