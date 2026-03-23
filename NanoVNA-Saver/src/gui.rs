@@ -572,6 +572,15 @@ impl eframe::App for NanoVNASaverApp {
 mod tests {
     use super::*;
 
+    
+    #[test]
+    fn test_empty_output_path() {
+        let current_dir = std::env::current_dir();
+        let output = resolve_output_path("");
+
+        assert_eq!(current_dir.unwrap().join("output.csv"), output);
+    }
+
     #[test]
     fn test_default_values() {
         let default = NanoVNASaverApp::default();
