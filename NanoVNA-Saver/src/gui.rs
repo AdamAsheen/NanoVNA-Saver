@@ -572,6 +572,19 @@ impl eframe::App for NanoVNASaverApp {
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_output_path() {
+        let path = "C:\\Users\\LiamR\\Downloads\\output.csv";
+
+        assert_eq!(PathBuf::from(path), resolve_output_path(path));
+    }
+
+    #[test]
+    fn test_output_path_appends_filename() {
+        let path = "C:\\Users\\LiamR\\Downloads\\";
+
+        assert_eq!(PathBuf::from(path).join("output.csv"), resolve_output_path(path));
+    }
     
     #[test]
     fn test_empty_output_path() {
