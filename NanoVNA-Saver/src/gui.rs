@@ -1,5 +1,6 @@
 use crate::{RunConfig, detect_nanovna_port_names, run};
 use eframe::egui;
+use polars::frame::DataFrame;
 use polars::prelude::{CsvWriter, SerWriter};
 use std::fs::{OpenOptions, create_dir_all};
 use std::path::PathBuf;
@@ -90,7 +91,8 @@ pub struct NanoVNASaverApp {
     is_running: bool,
     terminal_panel_width: f32,
     log_rx: Option<Receiver<String>>,
-    run_rx: Option<Receiver<Result<String, String>>>,
+    run_rx: Option<Receiver<Result<(DataFrame, String), String>>>,
+    dataframe: Option<DataFrame>,
     stop_flag: Option<Arc<AtomicBool>>,
 }
 
@@ -115,6 +117,7 @@ impl Default for NanoVNASaverApp {
             terminal_panel_width: 0.0,
             log_rx: None,
             run_rx: None,
+            dataframe: None,
             stop_flag: None,
         };
         app.refresh_ports();
@@ -196,7 +199,10 @@ impl eframe::App for NanoVNASaverApp {
             set_gui_row_sender(None);
 
             match result {
-                Ok(message) => append_terminal_line(&mut self.terminal, &message),
+                Ok((dataframe, message)) => {
+                    append_terminal_line(&mut self.terminal, &message);
+                    self.dataframe = Some(dataframe);
+                }
                 Err(err) => append_terminal_line(&mut self.terminal, &format!("Error: {err}")),
             }
         }
@@ -338,6 +344,7 @@ impl eframe::App for NanoVNASaverApp {
                             thread::spawn(move || {
                                 let result = run(config).and_then(|sweep| {
                                     let mut df = sweep.dataframe;
+                                    let df_clone = df.clone();
 
                                     if let Some(parent) = output_path.parent()
                                         && !parent.as_os_str().is_empty()
@@ -374,12 +381,12 @@ impl eframe::App for NanoVNASaverApp {
                                         .finish(&mut df)
                                         .map_err(|e| format!("Failed to write CSV: {e}"))?;
 
-                                    Ok(format!(
+                                    Ok((df_clone, format!(
                                         "Sweep complete. Bytes: {}, Elapsed: {:.2}s\nResults file: {}",
                                         sweep.total_bytes,
                                         sweep.elapsed_seconds,
                                         output_path.display()
-                                    ))
+                                    )))
                                 });
                                 let _ = tx.send(result);
                             });
@@ -563,7 +570,59 @@ impl eframe::App for NanoVNASaverApp {
             });
 
             ui.add_space(8.0);
-            ui.label("Main controls will go here");
+            ui.separator();
+
+            if let Some(df) = &self.dataframe {
+                let available = ui.available_size();
+                let plot_height = (available.y - 16.0) / 2.0;
+                let plot_width = (available.x - 16.0) / 2.0;
+
+                let channels = df.column("channel").unwrap().str().unwrap().into_iter().collect::<Vec<_>>();
+                let freqs = df.column("frequency_hz").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
+                let reals = df.column("real").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
+                let imags = df.column("imag").unwrap().f64().unwrap().into_iter().collect::<Vec<_>>();
+
+                let sweep_ids = df.column("sweep_id").unwrap().str().unwrap().into_iter().collect::<Vec<_>>();
+                let vna_nums = df.column("vna_number").unwrap().i32().unwrap().into_iter().collect::<Vec<_>>();
+
+                let mut last_sweep_per_vna: std::collections::HashMap<i32, &str> = std::collections::HashMap::new();
+                for i in 0..sweep_ids.len() {
+                    if let (Some(sid), Some(vna)) = (sweep_ids[i], vna_nums[i]) {
+                        last_sweep_per_vna.insert(vna, sid);
+                    }
+                }
+
+                let max_vna = vna_nums.iter().filter_map(|v| *v).max().unwrap_or(1) as usize;
+
+                let mut s11: Vec<Vec<[f64; 3]>> = vec![Vec::new(); max_vna];
+                let mut s21: Vec<Vec<[f64; 3]>> = vec![Vec::new(); max_vna];
+
+                for i in 0..channels.len() {
+                    let (Some(ch), Some(freq), Some(real), Some(imag), Some(vna), Some(sid)) =
+                        (channels[i], freqs[i], reals[i], imags[i], vna_nums[i], sweep_ids[i]) else { continue; };
+                    if last_sweep_per_vna.get(&vna).copied() != Some(sid) { continue; }
+                    let vna_idx = (vna as usize) - 1;
+                    match ch {
+                        "S11" => { if vna_idx < max_vna { s11[vna_idx].push([freq, real, imag]); } }
+                        "S21" => { if vna_idx < max_vna { s21[vna_idx].push([freq, real, imag]); } }
+                        &_ => {}
+                    }
+                }
+
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| { crate::graph::s11_log_mag(ui, &s11, plot_height, plot_width); });
+                    ui.add_space(8.0);
+                    ui.vertical(|ui| { crate::graph::s11_smith(ui, &s11, plot_height, plot_width); });
+                });
+
+                ui.add_space(8.0);
+
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| { crate::graph::s21_log_mag(ui, &s21, plot_height, plot_width); });
+                    ui.add_space(8.0);
+                    ui.vertical(|ui| { crate::graph::s21_phase(ui, &s21, plot_height, plot_width); });
+                });
+            }
         });
     }
 }
