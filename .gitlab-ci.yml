@@ -9,10 +9,17 @@ clippy-check:
     - rust-runner
   script: 
     - rustup component add clippy
+    - cd NanoVNA-Saver
+    - cargo clippy --all-targets --all-features -- -Dwarnings
+  
+formatter:
+  stage: lint
+  tags:
+    - rust-runner
+  script:
     - rustup component add rustfmt
     - cd NanoVNA-Saver
     - cargo fmt --all -- --check
-    - cargo clippy --all-targets --all-features -- -Dwarnings
 
 rust-latest:
   stage: build

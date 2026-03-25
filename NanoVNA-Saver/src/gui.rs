@@ -632,6 +632,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_output_path() {
+        let path = "C:\\Users\\LiamR\\Downloads\\output.csv";
+
+        assert_eq!(PathBuf::from(path), resolve_output_path(path));
+    }
+
+    #[test]
+    fn test_output_path_appends_filename() {
+        let path = "C:\\Users\\Bob\\Downloads\\";
+
+        assert_eq!(
+            PathBuf::from(path).join("output.csv"),
+            resolve_output_path(path)
+        );
+    }
+
+    #[test]
+    fn test_empty_output_path() {
+        let current_dir = std::env::current_dir();
+        let output = resolve_output_path("");
+
+        assert_eq!(current_dir.unwrap().join("output.csv"), output);
+    }
+
+    #[test]
     fn test_default_values() {
         let default = NanoVNASaverApp::default();
 
