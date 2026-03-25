@@ -581,9 +581,12 @@ mod tests {
 
     #[test]
     fn test_output_path_appends_filename() {
-        let path = "C:\\Users\\LiamR\\Downloads\\";
+        let path = "C:\\Users\\Bob\\Downloads\\";
 
-        assert_eq!(PathBuf::from(path).join("output.csv"), resolve_output_path(path));
+        assert_eq!(
+            PathBuf::from(path).join("output.csv"),
+            resolve_output_path(path)
+        );
     }
     
     #[test]
