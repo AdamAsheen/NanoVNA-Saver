@@ -588,7 +588,7 @@ mod tests {
             resolve_output_path(path)
         );
     }
-    
+
     #[test]
     fn test_empty_output_path() {
         let current_dir = std::env::current_dir();
