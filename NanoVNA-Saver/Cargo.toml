@@ -17,6 +17,9 @@ egui_plot = "0.29"
 [dev-dependencies]
 mockall = "0.14.0"
 
+[build-dependencies]
+embed-resource = "3"
+
 [[bin]]
 name = "nanovna-saver"
 path = "src/bin/cli.rs"
